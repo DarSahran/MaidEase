@@ -40,7 +40,7 @@ export default function WhoAreYouScreen() {
           useNativeDriver: true,
         }).start();
       });
-    }, 5000); // Change image every 5 seconds
+    }, 2000); // Change image every 2 seconds
 
     return () => clearInterval(interval);
   }, []);

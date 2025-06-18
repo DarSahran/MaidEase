@@ -1,6 +1,8 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
+import FacebookSignInButton from '../../components/FacebookSignInButton';
 import { supabase } from '../../constants/supabase';
 
 export default function LoginScreen() {
@@ -102,12 +104,8 @@ export default function LoginScreen() {
         <Text style={styles.or}>Or</Text>
 
         {/* Social Buttons */}
-        <TouchableOpacity style={styles.socialButton}>
-          <Text style={styles.socialButtonText}>Continue with Google</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.socialButton}>
-          <Text style={styles.socialButtonText}>Continue with Facebook</Text>
-        </TouchableOpacity>
+        <GoogleSignInButton />
+        <FacebookSignInButton />
       </ScrollView>
       {/* Signup Link at the bottom */}
       <View style={styles.signupBottomContainer}>

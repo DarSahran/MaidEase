@@ -71,7 +71,7 @@ export default function SignupScreen() {
     handleChange('password', v);
     // Password strength logic
     let strength = '';
-    if (v.length < 6) strength = 'Weak';
+    if (v.length < 5) strength = 'Weak';
     else if (/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(v)) strength = 'Medium';
     else if (/^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/.test(v)) strength = 'Strong';
     else strength = 'Weak';
