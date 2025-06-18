@@ -5,14 +5,31 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
   const router = useRouter();
+
+  const handleLogin = () => {
+    if (!email) {
+      setEmailError('Email is required');
+      return;
+    } else if (!email.includes('@')) {
+      setEmailError('Enter a valid email address');
+      return;
+    } else {
+      setEmailError('');
+    }
+    // Add your login logic here
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.push('/(welcome)/who-are-you')}
+          >
             <Text style={styles.backIcon}>{'\u2190'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
@@ -29,10 +46,11 @@ export default function LoginScreen() {
             placeholder="Email"
             placeholderTextColor="#638770"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={text => { setEmail(text); setEmailError(''); }}
             autoCapitalize="none"
             keyboardType="email-address"
           />
+          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
         </View>
 
         {/* Password Input */}
@@ -52,7 +70,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         {/* Login Button */}
-        <TouchableOpacity style={styles.loginButton}>
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           <Text style={styles.loginButtonText}>Log in</Text>
         </TouchableOpacity>
 
@@ -145,5 +163,11 @@ const styles = StyleSheet.create({
     left: 0,
     width: '100%',
     alignItems: 'center',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
