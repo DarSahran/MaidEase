@@ -1,14 +1,17 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../constants/supabase';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const router = useRouter();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email) {
       setEmailError('Email is required');
       return;
@@ -18,7 +21,28 @@ export default function LoginScreen() {
     } else {
       setEmailError('');
     }
-    // Add your login logic here
+    setSaving(true);
+    setLoginError('');
+    // Check if user exists
+    const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
+    setSaving(false);
+    if (error && error.code === 'PGRST116') { // Not found
+      // Redirect to signup with prefilled email
+      router.push({ pathname: '/(auth)/signup', params: { email } });
+      return;
+    }
+    if (error) {
+      setLoginError('Error: ' + error.message);
+      return;
+    }
+    if (data && data.password === password) {
+      setLoginError('');
+      console.log('user verified and logging in');
+      // router.push('/(main)/dashboard');
+    } else {
+      setLoginError('Incorrect password.');
+      console.log('Incorrect password.');
+    }
   };
 
   return (
@@ -70,9 +94,10 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         {/* Login Button */}
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Log in</Text>
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={saving}>
+          <Text style={styles.loginButtonText}>{saving ? 'Logging in...' : 'Log in'}</Text>
         </TouchableOpacity>
+        {loginError ? <Text style={styles.errorText}>{loginError}</Text> : null}
 
         <Text style={styles.or}>Or</Text>
 

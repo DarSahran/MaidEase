@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -20,23 +20,51 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState('');
+  const [errors, setErrors] = useState<any>({});
+  const [newUserData, setNewUserData] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const router = useRouter();
+  const params = useLocalSearchParams();
+
+  React.useEffect(() => {
+    if (params.email) handleChange('email', String(params.email));
+  }, [params.email]);
 
   const handleChange = (name: string, value: string) => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSignup = () => {
-    if (!form.email) {
-      setEmailError('Email is required');
-      return;
-    } else if (!form.email.includes('@')) {
-      setEmailError('Enter a valid email address');
-      return;
-    } else {
-      setEmailError('');
-    }
-    // Add your signup logic here
+  const validate = () => {
+    const errs: any = {};
+    if (!form.fullName.trim()) errs.fullName = 'Full name is required';
+    if (!form.mobile || form.mobile.length !== 10) errs.mobile = 'Valid 10-digit mobile number required';
+    if (!form.email) errs.email = 'Email is required';
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) errs.email = 'Enter a valid email address';
+    if (!form.apartment.trim()) errs.apartment = 'Apartment number is required';
+    if (!form.street.trim()) errs.street = 'Street is required';
+    if (!form.city.trim()) errs.city = 'City is required';
+    if (!form.state.trim()) errs.state = 'State is required';
+    if (!form.pincode || form.pincode.length !== 6) errs.pincode = 'Valid 6-digit pincode required';
+    if (!form.password) errs.password = 'Password is required';
+    else if (passwordStrength === 'Weak') errs.password = 'Password is too weak';
+    if (form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match';
+    return errs;
+  };
+
+  const handleSignup = async () => {
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
+    setEmailError('');
+    setSaving(true);
+    setSaveError('');
+    // Do NOT save to Supabase yet, go to OTP page with all details
+    setSaving(false);
+    router.push({
+      pathname: '/(auth)/otp-verification',
+      params: { ...form }
+    });
   };
 
   const handlePasswordChange = (v: string) => {
@@ -55,9 +83,11 @@ export default function SignupScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.headerRow}>
-          {/* <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          {/* Uncomment below for back button if needed
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backIcon}>{'\u2190'}</Text>
-          </TouchableOpacity> */}
+          </TouchableOpacity>
+          */}
           <Text style={styles.headerTitle}>
             <Text style={styles.headerTitleBold}>MaidEasy</Text>
           </Text>
@@ -75,6 +105,7 @@ export default function SignupScreen() {
               onChangeText={(v) => handleChange('fullName', v)}
             />
           </View>
+          {errors.fullName ? <Text style={styles.errorText}>{errors.fullName}</Text> : null}
         </View>
 
         <View style={styles.formSection}>
@@ -85,10 +116,12 @@ export default function SignupScreen() {
               placeholder="Mobile Number"
               placeholderTextColor="#698273"
               keyboardType="phone-pad"
+              maxLength={10}
               value={form.mobile}
-              onChangeText={(v) => handleChange('mobile', v)}
+              onChangeText={(v) => handleChange('mobile', v.replace(/[^0-9]/g, '').slice(0, 10))}
             />
           </View>
+          {errors.mobile ? <Text style={styles.errorText}>{errors.mobile}</Text> : null}
         </View>
 
         <View style={styles.formSection}>
@@ -104,7 +137,7 @@ export default function SignupScreen() {
               autoCapitalize="none"
             />
           </View>
-          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+          {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
         </View>
 
         {/* Address Fields */}
@@ -120,6 +153,7 @@ export default function SignupScreen() {
                 onChangeText={(v) => handleChange('apartment', v)}
               />
             </View>
+            {errors.apartment ? <Text style={styles.errorText}>{errors.apartment}</Text> : null}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Street Name</Text>
@@ -132,6 +166,7 @@ export default function SignupScreen() {
                 onChangeText={(v) => handleChange('street', v)}
               />
             </View>
+            {errors.street ? <Text style={styles.errorText}>{errors.street}</Text> : null}
           </View>
         </View>
 
@@ -147,6 +182,7 @@ export default function SignupScreen() {
                 onChangeText={(v) => handleChange('city', v)}
               />
             </View>
+            {errors.city ? <Text style={styles.errorText}>{errors.city}</Text> : null}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>State</Text>
@@ -159,6 +195,7 @@ export default function SignupScreen() {
                 onChangeText={(v) => handleChange('state', v)}
               />
             </View>
+            {errors.state ? <Text style={styles.errorText}>{errors.state}</Text> : null}
           </View>
         </View>
 
@@ -171,9 +208,10 @@ export default function SignupScreen() {
               placeholderTextColor="#698273"
               keyboardType="number-pad"
               value={form.pincode}
-              onChangeText={(v) => handleChange('pincode', v)}
+              onChangeText={(v) => handleChange('pincode', v.replace(/[^0-9]/g, '').slice(0, 6))}
             />
           </View>
+          {errors.pincode ? <Text style={styles.errorText}>{errors.pincode}</Text> : null}
         </View>
 
         {/* Password Fields */}
@@ -197,6 +235,7 @@ export default function SignupScreen() {
               Password Strength: {passwordStrength}
             </Text>
           ) : null}
+          {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
         </View>
 
         <View style={styles.formSection}>
@@ -214,12 +253,14 @@ export default function SignupScreen() {
               <Ionicons name={showConfirmPassword ? 'eye-off' : 'eye'} size={22} color="#698273" />
             </TouchableOpacity>
           </View>
+          {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
         </View>
 
         {/* Signup Button */}
-        <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-          <Text style={styles.signupButtonText}>Create Account</Text>
+        <TouchableOpacity style={styles.signupButton} onPress={handleSignup} disabled={saving}>
+          <Text style={styles.signupButtonText}>{saving ? 'Saving...' : 'Create Account'}</Text>
         </TouchableOpacity>
+        {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
 
         {/* Login Link */}
         <Text style={styles.loginText}>
