@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import GoogleSignInButton from '../../components/GoogleSignInButton';
 import FacebookSignInButton from '../../components/FacebookSignInButton';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { supabase } from '../../constants/supabase';
 
 export default function LoginScreen() {

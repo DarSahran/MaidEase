@@ -1,6 +1,6 @@
 // components/FacebookSignInButton.tsx
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 export default function FacebookSignInButton({ onPress, disabled }: { onPress?: () => void; disabled?: boolean }) {
   // You can add Facebook sign-in logic here, for now just a placeholder
