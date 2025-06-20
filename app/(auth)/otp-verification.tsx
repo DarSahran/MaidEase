@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../constants/supabase';
 
 export default function OTPVerificationScreen() {
@@ -15,7 +15,7 @@ export default function OTPVerificationScreen() {
 
   // Format the mobile number for display
   const formattedMobile = mobile && typeof mobile === 'string'
-    ? `+91 ${mobile.replace(/\D/g, '').slice(-10)}`
+    ? `+91 XXXXXXXX${mobile.slice(-2)}`
     : '+91';
 
   useEffect(() => {
@@ -38,13 +38,6 @@ export default function OTPVerificationScreen() {
     // Move to previous input if deleted
     if (!value && index > 0) {
       inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (text: string) => {
-    if (/^\d{6}$/.test(text)) {
-      setOtp(text.split(''));
-      inputRefs.current[5]?.focus();
     }
   };
 
@@ -88,7 +81,6 @@ export default function OTPVerificationScreen() {
         }
       } else {
         setMessage('Invalid OTP. Please try again.');
-        console.log('Invalid OTP entered:', otp.join(''));
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       }
@@ -97,7 +89,6 @@ export default function OTPVerificationScreen() {
 
   const handleResend = () => {
     if (timer === 0) {
-      // Implement resend OTP logic here
       setMessage('OTP resent!');
       setSuccess(false);
       setOtp(['', '', '', '', '', '']);
@@ -119,6 +110,15 @@ export default function OTPVerificationScreen() {
             Enter the OTP sent to <Text style={{ fontWeight: 'bold' }}>{formattedMobile}</Text>
           </Text>
 
+          {/* Illustration */}
+          <View style={styles.illustrationBox}>
+            <Image
+              source={require('@/assets/images/otp_illustration.png')}
+              style={styles.illustration}
+              resizeMode="contain"
+            />
+          </View>
+
           {/* OTP Inputs */}
           <View style={styles.otpRow}>
             {otp.map((digit, idx) => (
@@ -130,18 +130,7 @@ export default function OTPVerificationScreen() {
                 maxLength={1}
                 value={digit}
                 onChangeText={val => handleChange(idx, val)}
-                onFocus={() => {
-                  // Select the digit for easy overwrite
-                  if (otp[idx]) setOtp(prev => {
-                    const copy = [...prev];
-                    copy[idx] = '';
-                    return copy;
-                  });
-                }}
                 autoFocus={idx === 0}
-                onSubmitEditing={() => {
-                  if (idx === 5 && isOtpFilled) handleVerify();
-                }}
                 textContentType="oneTimeCode"
                 importantForAutofill="yes"
               />
@@ -193,15 +182,30 @@ export default function OTPVerificationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  header: { fontSize: 22, fontWeight: '700', marginBottom: 8, color: '#121714', fontFamily: 'Lexend' },
-  subheader: { fontSize: 16, color: '#121714', marginBottom: 24, textAlign: 'center', fontFamily: 'Lexend' },
-  otpRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 24 },
+  container: { flex: 1, justifyContent: 'flex-start', alignItems: 'center', padding: 0, backgroundColor: '#fff' },
+  header: { fontSize: 18, fontWeight: '700', color: '#121714', fontFamily: 'Lexend', textAlign: 'center', lineHeight: 23, marginTop: 28 },
+  subheader: { fontSize: 16, color: '#121714', marginBottom: 8, textAlign: 'center', fontFamily: 'Lexend', lineHeight: 24, paddingHorizontal: 16 },
+  illustrationBox: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 32, // Increased top padding for more space above
+    paddingBottom: 24, // More space below
+    backgroundColor: '#fff',
+  },
+  illustration: {
+    width: 420,
+    height: 420,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    marginVertical: 0, // Remove margin if any
+  },
+  otpRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8, marginBottom: 16 },
   otpInput: {
-    width: 48, height: 56, backgroundColor: '#F2F5F2', borderRadius: 12,
+    width: 48, height: 56, backgroundColor: '#fff', borderRadius: 12, borderWidth: 2, borderColor: '#DEE3E0',
     marginHorizontal: 4, textAlign: 'center', fontSize: 20, fontWeight: '700', color: '#121714', fontFamily: 'Lexend'
   },
-  timerRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 24 },
+  timerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   timerBox: {
     width: 90, height: 56, backgroundColor: '#F2F5F2', borderRadius: 12,
     justifyContent: 'center', alignItems: 'center', marginHorizontal: 8,
@@ -209,10 +213,10 @@ const styles = StyleSheet.create({
   timerValue: { color: '#121714', fontSize: 18, fontWeight: '700', fontFamily: 'Lexend' },
   timerLabel: { color: '#121714', fontSize: 14, fontFamily: 'Lexend' },
   verifyButton: {
-    borderRadius: 24, height: 48, justifyContent: 'center', alignItems: 'center', width: '100%', marginBottom: 16,
+    borderRadius: 24, height: 48, justifyContent: 'center', alignItems: 'center', width: '90%', marginBottom: 12, alignSelf: 'center',
   },
   verifyButtonActive: { backgroundColor: '#38E078' },
   verifyButtonDisabled: { backgroundColor: '#686767' },
   verifyButtonText: { fontSize: 16, fontWeight: '700', fontFamily: 'Lexend' },
-  resend: { color: '#698273', fontSize: 14, marginTop: 12, textAlign: 'center', fontFamily: 'Lexend' },
+  resend: { fontSize: 14, marginTop: 8, textAlign: 'center', fontFamily: 'Lexend' },
 });
