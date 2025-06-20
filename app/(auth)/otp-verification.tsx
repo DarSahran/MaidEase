@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../constants/supabase';
+import { saveUser } from '../../utils/session';
 
 export default function OTPVerificationScreen() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -51,10 +52,9 @@ export default function OTPVerificationScreen() {
       if (otp.join('') === '000000') {
         setSuccess(true);
         setMessage('OTP verified successfully!');
-        router.replace('../(main)');
         // Save user to Supabase if all details are present
         if (params.fullName && params.mobile && params.email && params.apartment && params.street && params.city && params.state && params.pincode && params.password) {
-          const { error } = await supabase.from('users').insert([
+          const { data, error } = await supabase.from('users').insert([
             {
               full_name: params.fullName,
               mobile: params.mobile,
@@ -66,7 +66,7 @@ export default function OTPVerificationScreen() {
               pincode: params.pincode,
               password: params.password, // In production, hash the password!
             }
-          ]);
+          ]).select('*').single();
           if (error) {
             if (error.message.includes('duplicate key value') && error.message.includes('users_email_key')) {
               setMessage('An account with this email already exists. Please log in.');
@@ -77,7 +77,9 @@ export default function OTPVerificationScreen() {
           } else {
             setMessage('User account created successfully!');
             setSuccess(true);
-            // router.push('/(main)/dashboard');
+            // Save user session
+            await saveUser(data);
+            router.replace('../(main)');
           }
         }
       } else {

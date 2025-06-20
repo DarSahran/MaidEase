@@ -1,31 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BookingCard from '../../components/dashboard/BookingCard';
 import HomeSnapshot from '../../components/dashboard/HomeSnapshot';
 import QuickActions from '../../components/dashboard/QuickActions';
 import SearchBar from '../../components/dashboard/SearchBar';
 import ServiceCard from '../../components/dashboard/ServiceCard';
+import { getUser } from '../../utils/session';
 
 
 // Replace the services array with valid Ionicons names
 const services = [
-  { id: 'brooming', name: 'Brooming', icon: 'brush-outline' }, // was 'broom'
-  { id: 'mopping', name: 'Mopping', icon: 'water-outline' },
-  { id: 'dusting', name: 'Dusting', icon: 'sparkles-outline' },
-  { id: 'kitchen', name: 'Kitchen Cleaning', icon: 'restaurant-outline' },
-  { id: 'bathroom', name: 'Bathroom Cleaning', icon: 'home-outline' }, // was 'toilet'
-  { id: 'babysitting', name: 'Babysitting', icon: 'happy-outline' },
-  { id: 'washing-clothes', name: 'Washing Clothes', icon: 'shirt-outline' },
-  { id: 'washing-utensils', name: 'Washing Utensils', icon: 'download-outline' },
+  { id: 'brooming', name: 'Brooming', icon: 'brush-outline' as const },
+  { id: 'mopping', name: 'Mopping', icon: 'water-outline' as const },
+  { id: 'dusting', name: 'Dusting', icon: 'sparkles-outline' as const },
+  { id: 'kitchen', name: 'Kitchen Cleaning', icon: 'restaurant-outline' as const },
+  { id: 'bathroom', name: 'Bathroom Cleaning', icon: 'home-outline' as const },
+  { id: 'babysitting', name: 'Babysitting', icon: 'happy-outline' as const },
+  { id: 'washing-clothes', name: 'Washing Clothes', icon: 'shirt-outline' as const },
+  { id: 'washing-utensils', name: 'Washing Utensils', icon: 'download-outline' as const },
 ];
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    (async () => {
+      const u = await getUser();
+      setUser(u);
+    })();
+  }, []);
 
   const handleServicePress = (serviceId: string) => {
-    router.push(`/(main)/service/${serviceId}`);
+    router.push(`../ (main)/service/${serviceId}`.replace(' ', ''));
   };
 
   return (
@@ -41,7 +50,17 @@ export default function DashboardScreen() {
 
         {/* Greeting */}
         <View style={styles.greetingSection}>
-          <Text style={styles.greeting}>👋 Good Morning, Rohan!</Text>
+          <Text style={styles.greeting}>
+            {(() => {
+              const hour = new Date().getHours();
+              let greeting = 'Good Morning';
+              if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
+              else if (hour >= 17 || hour < 4) greeting = 'Good Evening';
+              const capitalize = (str: string) =>
+              str.charAt(0).toUpperCase() + str.slice(1);
+              return `👋 ${greeting}, ${user && user.full_name ? capitalize(user.full_name) : ''}!`;
+            })()}
+          </Text>
           <Text style={styles.subtitle}>Let's make your day a little cleaner.</Text>
         </View>
 

@@ -4,6 +4,7 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity
 import FacebookSignInButton from '../../components/FacebookSignInButton';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { supabase } from '../../constants/supabase';
+import { saveUser } from '../../utils/session';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -39,6 +40,8 @@ export default function LoginScreen() {
     }
     if (data && data.password === password) {
       setLoginError('');
+      // Save user session
+      await saveUser(data);
       console.log('user verified and logging in');
       router.replace('../(main)');
       // router.push('/(main)/dashboard');

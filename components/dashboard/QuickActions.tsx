@@ -3,7 +3,15 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 const quickActions = [
   'Rebook Kitchen Cleaning',
-  'Elderly Care for Grandma',
+  'Schedule Weekly Dusting',
+  'Book Deep Bathroom Clean',
+  'Request Fridge Organization',
+  'Order Post-Party Cleanup',
+  'Book Elderly Care',
+  'Schedule Carpet Cleaning',
+  'Request Balcony Maintenance',
+  'Book Wardrobe Organization',
+  'Schedule Monthly Deep Clean',
 ];
 
 export default function QuickActions() {
