@@ -40,6 +40,7 @@ export default function LoginScreen() {
     if (data && data.password === password) {
       setLoginError('');
       console.log('user verified and logging in');
+      router.replace('../(main)');
       // router.push('/(main)/dashboard');
     } else {
       setLoginError('Incorrect password.');

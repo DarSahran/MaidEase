@@ -51,6 +51,7 @@ export default function OTPVerificationScreen() {
       if (otp.join('') === '000000') {
         setSuccess(true);
         setMessage('OTP verified successfully!');
+        router.replace('../(main)');
         // Save user to Supabase if all details are present
         if (params.fullName && params.mobile && params.email && params.apartment && params.street && params.city && params.state && params.pincode && params.password) {
           const { error } = await supabase.from('users').insert([
