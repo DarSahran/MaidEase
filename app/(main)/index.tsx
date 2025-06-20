@@ -43,7 +43,10 @@ export default function DashboardScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.appName}>MaidEasy</Text>
-          <TouchableOpacity style={styles.settingsButton}>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => router.push('/(settings)/settings')}
+          >
             <Ionicons name="settings-outline" size={24} color="#0D1C0D" />
           </TouchableOpacity>
         </View>
@@ -57,8 +60,8 @@ export default function DashboardScreen() {
               if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
               else if (hour >= 17 || hour < 4) greeting = 'Good Evening';
               const capitalize = (str: string) =>
-              str.charAt(0).toUpperCase() + str.slice(1);
-              return `👋 ${greeting}, ${user && user.full_name ? capitalize(user.full_name) : ''}!`;
+                str.charAt(0).toUpperCase() + str.slice(1);
+              return `👋 ${greeting}, ${user && user.first_name ? capitalize(user.first_name) : ''}!`;
             })()}
           </Text>
           <Text style={styles.subtitle}>Let's make your day a little cleaner.</Text>

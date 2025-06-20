@@ -5,7 +5,8 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity
 
 export default function SignupScreen() {
   const [form, setForm] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     mobile: '',
     email: '',
     apartment: '',
@@ -37,7 +38,8 @@ export default function SignupScreen() {
 
   const validate = () => {
     const errs: any = {};
-    if (!form.fullName.trim()) errs.fullName = 'Full name is required';
+    if (!form.firstName.trim()) errs.firstName = 'First name is required';
+    if (!form.lastName.trim()) errs.lastName = 'Last name is required';
     if (!form.mobile || form.mobile.length !== 10) errs.mobile = 'Valid 10-digit mobile number required';
     if (!form.email) errs.email = 'Email is required';
     else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) errs.email = 'Enter a valid email address';
@@ -95,17 +97,30 @@ export default function SignupScreen() {
 
         {/* Form Fields */}
         <View style={styles.formSection}>
-          <Text style={styles.label}>Full Name</Text>
+          <Text style={styles.label}>First Name</Text>
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
-              placeholder="Full Name"
+              placeholder="First Name"
               placeholderTextColor="#698273"
-              value={form.fullName}
-              onChangeText={(v) => handleChange('fullName', v)}
+              value={form.firstName}
+              onChangeText={(v) => handleChange('firstName', v)}
             />
           </View>
-          {errors.fullName ? <Text style={styles.errorText}>{errors.fullName}</Text> : null}
+          {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
+        </View>
+        <View style={styles.formSection}>
+          <Text style={styles.label}>Last Name</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Last Name"
+              placeholderTextColor="#698273"
+              value={form.lastName}
+              onChangeText={(v) => handleChange('lastName', v)}
+            />
+          </View>
+          {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
         </View>
 
         <View style={styles.formSection}>

@@ -53,10 +53,11 @@ export default function OTPVerificationScreen() {
         setSuccess(true);
         setMessage('OTP verified successfully!');
         // Save user to Supabase if all details are present
-        if (params.fullName && params.mobile && params.email && params.apartment && params.street && params.city && params.state && params.pincode && params.password) {
+        if (params.firstName && params.lastName && params.mobile && params.email && params.apartment && params.street && params.city && params.state && params.pincode && params.password) {
           const { data, error } = await supabase.from('users').insert([
             {
-              full_name: params.fullName,
+              first_name: params.firstName,
+              last_name: params.lastName,
               mobile: params.mobile,
               email: params.email,
               apartment: params.apartment,
