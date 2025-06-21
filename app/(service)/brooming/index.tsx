@@ -137,9 +137,10 @@ export default function BroomingService() {
 
   const getCurrentLocation = async () => {
     setLoadingLocation(true);
-    const OPENCAGE_API_KEY = '7fbc026c812d4d388ccec8a81cfeba54';
+    // Read OpenCage API key from .env (process.env.EXPO_PUBLIC_OPENCAGE_API_KEY or process.env.NEXT_PUBLIC_OPENCAGE_API_KEY)
+    const OPENCAGE_API_KEY = process.env.EXPO_PUBLIC_OPENCAGE_API_KEY || process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
     if (!OPENCAGE_API_KEY) {
-      Alert.alert('Error', 'OpenCage API key is missing. Please set your API key.');
+      Alert.alert('Error', 'OpenCage API key is missing. Please set your API key in your .env file.');
       setLoadingLocation(false);
       return;
     }
