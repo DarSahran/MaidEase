@@ -42,14 +42,14 @@ export default function SettingsScreen() {
             icon="location-outline"
             title="Real-Time Tracking"
             subtitle="Track your maid in real-time"
-            onPress={() => {}}
+            onPress={() => router.push('/(settings)/real-time-tracking')}
           />
           
           <SettingItem
             icon="time-outline"
             title="Booking History"
             subtitle="View past bookings and filter"
-            onPress={() => {}}
+            onPress={() => router.push('/(settings)/booking-history')}
           />
           
           <SettingItem
