@@ -9,15 +9,15 @@ import { Alert, StyleSheet, Text, TouchableOpacity } from 'react-native';
 // Initialize WebBrowser for auth session
 WebBrowser.maybeCompleteAuthSession();
 
-// Your Firebase config (replace with your actual config)
+// Your Firebase config (now using env variables)
 const firebaseConfig = {
-  apiKey: "AIzaSyArHQzajx9JkUd98ryqdToeTRFlyIjkQfo",
-  authDomain: "maideasy-b9537.firebaseapp.com",
-  projectId: "maideasy-b9537",
-  storageBucket: "maideasy-b9537.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase only if not already initialized

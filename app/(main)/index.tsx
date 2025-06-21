@@ -34,7 +34,7 @@ export default function DashboardScreen() {
   }, []);
 
   const handleServicePress = (serviceId: string) => {
-    router.push({ pathname: '/(service)/[serviceId]', params: { serviceId } });
+    router.push({ pathname: '../(service)/[serviceId]', params: { serviceId } });
   };
 
   return (
