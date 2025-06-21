@@ -34,7 +34,7 @@ export default function DashboardScreen() {
   }, []);
 
   const handleServicePress = (serviceId: string) => {
-    router.push(`../ (main)/service/${serviceId}`.replace(' ', ''));
+    router.push({ pathname: '/(service)/[serviceId]', params: { serviceId } });
   };
 
   return (
@@ -148,13 +148,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   servicesSection: {
-    padding: 16,
+    padding: 10,
   },
   servicesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 10,
   },
   moreServicesButton: {
     backgroundColor: '#1AE51A',
