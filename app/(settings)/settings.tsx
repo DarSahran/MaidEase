@@ -1,15 +1,30 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import SettingItem from '@/components/settings/SettingItem';
-import ToggleItem from '@/components/settings/ToggleItem';
 import AccountHeader from '@/components/settings/AccountHeader';
 import ProgressBar from '@/components/settings/ProgressBar';
+import SettingItem from '@/components/settings/SettingItem';
+import ToggleItem from '@/components/settings/ToggleItem';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [pushNotifications, setPushNotifications] = useState(true);
+
+  // Load push notification setting on mount
+  React.useEffect(() => {
+    (async () => {
+      const saved = await AsyncStorage.getItem('push_notifications_enabled');
+      if (saved !== null) setPushNotifications(saved === 'true');
+    })();
+  }, []);
+
+  // Save push notification setting when changed
+  const handleTogglePushNotifications = (val: boolean) => {
+    setPushNotifications(val);
+    AsyncStorage.setItem('push_notifications_enabled', val ? 'true' : 'false');
+  };
 
   const handleLogout = () => {
     // Add logout logic here
@@ -21,7 +36,7 @@ export default function SettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
@@ -37,124 +52,120 @@ export default function SettingsScreen() {
         {/* Bookings & Services */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Bookings & Services</Text>
-          
+
           <SettingItem
             icon="location-outline"
             title="Real-Time Tracking"
             subtitle="Track your maid in real-time"
             onPress={() => router.push('/(settings)/real-time-tracking')}
           />
-          
+
           <SettingItem
             icon="time-outline"
             title="Booking History"
             subtitle="View past bookings and filter"
             onPress={() => router.push('/(settings)/booking-history')}
           />
+
           
-          <SettingItem
-            icon="settings-outline"
-            title="Service Customization"
-            subtitle="Customize your cleaning preferences"
-            onPress={() => {}}
-          />
-          
+
           <SettingItem
             icon="calendar-outline"
             title="Booking Flexibility"
             subtitle="Reschedule or cancel your bookings"
-            onPress={() => {}}
+            onPress={() => router.push('/(settings)/booking-flexibility')}
           />
+
         </View>
 
         {/* Notifications & Communication */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications & Communication</Text>
-          
+
           <ToggleItem
             icon="notifications-outline"
             title="Push Notifications"
             subtitle="Get updates on bookings, arrivals, and payments"
             value={pushNotifications}
-            onToggle={setPushNotifications}
+            onToggle={handleTogglePushNotifications}
           />
-          
+
           <SettingItem
             icon="chatbubble-outline"
             title="In-App Chat/Support"
             subtitle="Chat with support or your maid"
-            onPress={() => {}}
+            onPress={() => { }}
           />
         </View>
 
         {/* Ratings & Feedback */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ratings & Feedback</Text>
-          
+
           <SettingItem
             icon="star-outline"
             title="Ratings & Reviews"
             subtitle="Manage your submitted ratings and reviews"
-            onPress={() => {}}
+            onPress={() => { }}
           />
-          
+
           <SettingItem
             icon="people-outline"
             title="Top-Rated Maids"
             subtitle="See your top-rated maids and rebook"
-            onPress={() => {}}
+            onPress={() => { }}
           />
         </View>
 
         {/* Payments & Pricing */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payments & Pricing</Text>
-          
+
           <SettingItem
             icon="card-outline"
             title="Payment Methods"
             subtitle="Manage your payment methods"
-            onPress={() => {}}
+            onPress={() => { }}
             showArrow={true}
           />
-          
+
           <SettingItem
             icon="cash-outline"
             title="Transparent Pricing"
             subtitle="Understand our transparent pricing policies"
-            onPress={() => {}}
+            onPress={() => { }}
           />
-          
+
           <SettingItem
             icon="receipt-outline"
             title="Payment Status"
             subtitle="Check the status of recent payments"
-            onPress={() => {}}
+            onPress={() => { }}
           />
         </View>
 
         {/* Promotions & Loyalty */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Promotions & Loyalty</Text>
-          
+
           <SettingItem
             icon="gift-outline"
             title="Referral Bonuses"
             subtitle="Earn bonuses for referring friends"
-            onPress={() => {}}
+            onPress={() => { }}
           />
-          
+
           <SettingItem
             icon="ticket-outline"
             title="Promo Codes"
             subtitle="Apply promo codes to your bookings"
-            onPress={() => {}}
+            onPress={() => { }}
           />
-          
+
           {/* Loyalty Tier */}
           <View style={styles.loyaltySection}>
             <Text style={styles.loyaltyTitle}>Loyalty Tier</Text>
-            <ProgressBar progress={0.6} />
+            <ProgressBar bookingsCount={6} />
             <Text style={styles.loyaltyLevel}>Silver</Text>
           </View>
         </View>
@@ -179,21 +190,21 @@ export default function SettingsScreen() {
         {/* Other */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Other</Text>
-          
+
           <SettingItem
             icon="shield-outline"
             title="Privacy Settings"
-            onPress={() => {}}
+            onPress={() => { }}
             compact={true}
           />
-          
+
           <SettingItem
             icon="help-circle-outline"
             title="Help & FAQ"
-            onPress={() => {}}
+            onPress={() => { }}
             compact={true}
           />
-          
+
           <SettingItem
             icon="log-out-outline"
             title="Log Out"

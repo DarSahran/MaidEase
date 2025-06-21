@@ -13,7 +13,7 @@ export default function AccountHeader() {
   }, []);
 
   const fullName = user
-    ? [user.first_name, user.last_name].filter(Boolean).join('').trim() || 'User'
+    ? [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || 'User'
     : 'User';
 
   return (

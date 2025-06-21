@@ -15,6 +15,7 @@ export default function RealTimeTrackingSettings() {
   const [liveTracking, setLiveTracking] = useState(false);
   const [geoFencing, setGeoFencing] = useState(false);
   const [trackingUpdate, setTrackingUpdate] = useState('start');
+  const [initialSettings, setInitialSettings] = useState<any>(null);
 
   // Load saved settings on mount
   useEffect(() => {
@@ -24,14 +25,33 @@ export default function RealTimeTrackingSettings() {
         setLiveTracking(saved.liveTracking ?? false);
         setGeoFencing(saved.geoFencing ?? false);
         setTrackingUpdate(saved.trackingUpdate ?? 'start');
+        setInitialSettings({
+          liveTracking: saved.liveTracking ?? false,
+          geoFencing: saved.geoFencing ?? false,
+          trackingUpdate: saved.trackingUpdate ?? 'start',
+        });
+      } else {
+        setInitialSettings({
+          liveTracking: false,
+          geoFencing: false,
+          trackingUpdate: 'start',
+        });
       }
     })();
   }, []);
 
-  // Save settings whenever they change
-  useEffect(() => {
-    saveTrackingSettings({ liveTracking, geoFencing, trackingUpdate });
-  }, [liveTracking, geoFencing, trackingUpdate]);
+  // Compare current state to initial settings
+  const isChanged = initialSettings && (
+    liveTracking !== initialSettings.liveTracking ||
+    geoFencing !== initialSettings.geoFencing ||
+    trackingUpdate !== initialSettings.trackingUpdate
+  );
+
+  const handleSave = async () => {
+    await saveTrackingSettings({ liveTracking, geoFencing, trackingUpdate });
+    setInitialSettings({ liveTracking, geoFencing, trackingUpdate });
+    router.back();
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F7FAFA' }}>
@@ -44,7 +64,6 @@ export default function RealTimeTrackingSettings() {
           <Text style={styles.headerTitle}>Real Time Tracking Settings</Text>
           <View style={{ width: 48 }} />
         </View>
-
         {/* Tracking */}
         <Text style={styles.sectionTitle}>Tracking</Text>
         <View style={styles.settingRow}>
@@ -56,10 +75,10 @@ export default function RealTimeTrackingSettings() {
             value={liveTracking}
             onValueChange={setLiveTracking}
             trackColor={{ false: "#E8F2ED", true: "#38E078" }}
-            thumbColor="#fff"
+            thumbColor={liveTracking ? "#38E078" : "#fff"}
+            style={styles.switchUniform}
           />
         </View>
-
         {/* Tracking Updates */}
         <Text style={styles.sectionTitle}>Tracking Updates</Text>
         <View style={{ paddingHorizontal: 16, gap: 12 }}>
@@ -82,7 +101,6 @@ export default function RealTimeTrackingSettings() {
             </TouchableOpacity>
           ))}
         </View>
-
         {/* Geo-Fencing */}
         <Text style={styles.sectionTitle}>Geo-Fencing</Text>
         <View style={styles.settingRow}>
@@ -94,10 +112,21 @@ export default function RealTimeTrackingSettings() {
             value={geoFencing}
             onValueChange={setGeoFencing}
             trackColor={{ false: "#E8F2ED", true: "#38E078" }}
-            thumbColor="#fff"
+            thumbColor={geoFencing ? "#38E078" : "#fff"}
+            style={styles.switchUniform}
           />
         </View>
+        {/* Bottom spacing for scroll */}
+        <View style={{ height: 100 }} />
       </ScrollView>
+      {/* Save Button - Fixed at bottom, only if changed */}
+      {isChanged && (
+        <View style={styles.saveButtonContainer}>
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave} activeOpacity={0.85}>
+            <Text style={styles.saveButtonText}>Save</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -191,5 +220,34 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: '#38E078',
+  },
+  switchUniform: {
+    transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
+    marginHorizontal: 0,
+    marginVertical: 0,
+  },
+  saveButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  saveButton: {
+    backgroundColor: '#38E078',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#0D1A12',
+    fontSize: 16,
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: '700',
+    lineHeight: 24,
   },
 });
