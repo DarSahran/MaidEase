@@ -275,55 +275,31 @@ export default function BroomingService() {
     }
   }, [locationMethod]);
 
-  const handleContinue = () => {
-    if (!isFormValid()) {
-      Alert.alert('Incomplete Form', 'Please select date, time, and at least one room.');
-      return;
-    }
-    let bookingAddress = address;
-    if (locationMethod === 'account') {
-      if (selectedSavedAddressType === 'main' && accountAddress) {
-        bookingAddress = accountAddress;
-      } else if (selectedSavedAddressType === 'user_address' && selectedSavedUserAddressId) {
-        const selectedAddr = userAddresses.find(addr => addr.id === selectedSavedUserAddressId);
-        if (selectedAddr) {
-          bookingAddress = {
-            houseNumber: selectedAddr.house_number,
-            street: selectedAddr.street,
-            city: selectedAddr.city,
-            state: selectedAddr.state,
-            pincode: selectedAddr.pincode
-          };
-        }
-      }
-    } else if (locationMethod === 'current' && selectedUserAddressId) {
-      const selectedAddr = userAddresses.find(addr => addr.id === selectedUserAddressId);
-      if (selectedAddr) {
-        bookingAddress = {
-          houseNumber: selectedAddr.house_number,
-          street: selectedAddr.street,
-          city: selectedAddr.city,
-          state: selectedAddr.state,
-          pincode: selectedAddr.pincode
-        };
-      }
-    }
-    const bookingData = {
-      service: 'Brooming',
-      address: bookingAddress,
-      date: selectedDate,
-      time: selectedTime,
-      rooms: selectedRooms,
-      broomProvider,
-      notes,
-      estimatedCost
-    };
-    // Navigate to next screen with booking data
-    router.push({
-      pathname: '/(main)/service/booking-summary',
-      params: { bookingData: JSON.stringify(bookingData) }
-    } as any);
+ const handleContinue = () => {
+  if (!isFormValid()) {
+    Alert.alert('Incomplete Form', 'Please select date, time, and at least one room.');
+    return;
+  }
+  
+  const bookingData = {
+    service: 'Brooming',
+    address,
+    date: selectedDate,
+    time: selectedTime,
+    rooms: selectedRooms,
+    broomProvider,
+    notes,
+    locationMethod,
+    estimatedCost
   };
+  
+  // Navigate to order summary
+  router.push({
+    pathname: '/(confirmation)/brooming_confirmation',
+    params: { bookingData: JSON.stringify(bookingData) }
+  });
+};
+
 
   // Helper: get number of selected rooms (excluding 'all')
   const getSelectedRoomCount = () => {
