@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, Alert } from 'react-native';
-import * as Crypto from 'expo-crypto';
 import { createClient } from '@supabase/supabase-js';
+import * as Crypto from 'expo-crypto';
+import React, { useState } from 'react';
+import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { getCurrentUserIdFromUsersTable } from '../../utils/session';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -9,11 +10,11 @@ const ENCRYPTION_KEY = process.env.EXPO_PUBLIC_ENCRYPTION_KEY;
 const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 interface AddUpiProps {
-  userId: string;
+  userId?: string;
   onSuccess: (upiId: string) => void;
 }
 
-export default function AddUpi({ userId, onSuccess }: AddUpiProps) {
+export default function AddUpi({ userId: propUserId, onSuccess }: AddUpiProps) {
   const [customUpi, setCustomUpi] = useState('');
   const [upiVerified, setUpiVerified] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,12 +25,23 @@ export default function AddUpi({ userId, onSuccess }: AddUpiProps) {
 
   const handleAddUpi = async () => {
     setUpiVerified(true); // Assume valid for now
-    if (!userId || !customUpi || !supabase) {
-      Alert.alert('Error', 'User or UPI ID missing.');
-      return;
-    }
     setLoading(true);
     try {
+      // Always use custom users table ID
+      let userId = propUserId;
+      if (!userId) {
+        userId = await getCurrentUserIdFromUsersTable();
+      }
+      if (!userId) {
+        Alert.alert('Error', 'User not found in system. Please contact support.');
+        setLoading(false);
+        return;
+      }
+      if (!customUpi || !supabase) {
+        Alert.alert('Error', 'UPI ID missing.');
+        setLoading(false);
+        return;
+      }
       const hashedUpi = await hashUpiId(customUpi);
       const insertData = {
         user_id: userId,
@@ -46,10 +58,9 @@ export default function AddUpi({ userId, onSuccess }: AddUpiProps) {
         Alert.alert('Error', 'Failed to save UPI. Please try again.');
       }
     } catch (e) {
-      Alert.alert('Error', 'Unexpected error.');
-    } finally {
-      setLoading(false);
+      Alert.alert('Error', 'An error occurred.');
     }
+    setLoading(false);
   };
 
   return (

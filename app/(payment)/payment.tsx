@@ -4,7 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { getUser } from '../../utils/session'; // adjust path if needed
+import { getCurrentUserIdFromUsersTable } from '../../utils/session';
 import AddUpi from './AddUpi';
 
 interface PaymentMethod {
@@ -41,31 +41,18 @@ export default function PaymentScreen() {
   const [customUpiSaved, setCustomUpiSaved] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Helper to get current user ID robustly
-  async function getCurrentUserId() {
-    if (supabase && supabase.auth && supabase.auth.getUser) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && user.id) return user.id;
-      } catch {}
-    }
-    const sessionUser = await getUser();
-    if (sessionUser && sessionUser.id) return sessionUser.id;
-    return null;
-  }
-
   // Fetch user cards from Supabase
   React.useEffect(() => {
     async function fetchCards() {
       setLoadingCards(true);
-      const userId = await getCurrentUserId();
+      const userId = await getCurrentUserIdFromUsersTable();
       if (!userId || !supabase) {
         setUserCards([]);
         setLoadingCards(false);
         return;
       }
       const { data, error } = await supabase
-        .from('user_payment_methods')
+        .from('user_payment_methods_cards')
         .select('*')
         .eq('user_id', userId)
         .eq('type', 'card');
@@ -83,14 +70,14 @@ export default function PaymentScreen() {
   React.useEffect(() => {
     async function fetchUpis() {
       setLoadingUpis(true);
-      const userId = await getCurrentUserId();
+      const userId = await getCurrentUserIdFromUsersTable();
       if (!userId || !supabase) {
         setUserUpis([]);
         setLoadingUpis(false);
         return;
       }
       const { data, error } = await supabase
-        .from('user_payment_methods')
+        .from('user_payment_method_upi')
         .select('*')
         .eq('user_id', userId)
         .eq('type', 'upi');
@@ -107,7 +94,7 @@ export default function PaymentScreen() {
   // Fetch user custom UPI from user_payment_method_upi (latest only)
   React.useEffect(() => {
     async function fetchCustomUpi() {
-      const userId = await getCurrentUserId();
+      const userId = await getCurrentUserIdFromUsersTable();
       if (!userId || !supabase) {
         setCustomUpiSaved(null);
         return;
@@ -131,12 +118,8 @@ export default function PaymentScreen() {
   // On mount, get userId for AddUpi
   React.useEffect(() => {
     async function fetchUserId() {
-      if (supabase && supabase.auth && supabase.auth.getUser) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user && user.id) setCurrentUserId(user.id);
-        } catch {}
-      }
+      const userId = await getCurrentUserIdFromUsersTable();
+      if (userId) setCurrentUserId(userId);
     }
     fetchUserId();
   }, []);
@@ -178,12 +161,33 @@ export default function PaymentScreen() {
   };
 
   const handleContinue = () => {
-    if (!selectedPaymentMethod) {
+    // Accept either card/wallet/cash or UPI as valid payment
+    if (!selectedPaymentMethod && !selectedUpiApp) {
       Alert.alert('Payment Method Required', 'Please select a payment method to continue');
       return;
     }
-    const selectedMethod = paymentMethods.find(method => method.id === selectedPaymentMethod);
-    // Use string path for navigation
+    let selectedMethod: any = null;
+    if (selectedPaymentMethod) {
+      selectedMethod = paymentMethods.find(method => method.id === selectedPaymentMethod)
+        || cardPaymentMethods.find(method => method.id === selectedPaymentMethod)
+        || { id: selectedPaymentMethod, type: 'wallet', title: selectedPaymentMethod };
+    } else if (selectedUpiApp) {
+      // UPI selection
+      if (selectedUpiApp === 'custom' || selectedUpiApp === 'custom-saved') {
+        selectedMethod = {
+          id: 'upi-custom',
+          type: 'upi',
+          title: customUpi || customUpiSaved || 'Custom UPI',
+        };
+      } else {
+        const upiApp = upiAppOptions.find(app => app.id === selectedUpiApp);
+        selectedMethod = {
+          id: upiApp?.id || 'upi',
+          type: 'upi',
+          title: upiApp?.name || 'UPI',
+        };
+      }
+    }
     router.push({
       pathname: '/(main)/service/payment-processing' as any,
       params: {
@@ -239,13 +243,14 @@ export default function PaymentScreen() {
     };
   });
 
+  // Only cards in card section, not in wallet
   const paymentMethods: PaymentMethod[] = [
     {
       id: 'upi-yourname',
       type: 'upi',
       title: 'yourname@upi',
     },
-    ...cardPaymentMethods,
+    // No cards here
     {
       id: 'wallet',
       type: 'wallet' as const,
@@ -399,7 +404,7 @@ export default function PaymentScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>UPI</Text>
         </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 8 }}>
           {upiAppOptions.map(app => (
             <TouchableOpacity
               key={app.id}
@@ -407,16 +412,16 @@ export default function PaymentScreen() {
                 {
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 150,
-                  height: 48,
-                  paddingHorizontal: 12,
-                  borderRadius: 20,
+                  justifyContent: 'flex-start',
+                  width: '48%',
+                  height: 52,
+                  paddingHorizontal: 14,
+                  borderRadius: 16,
                   borderWidth: selectedUpiApp === app.id ? 2 : 1,
                   borderColor: selectedUpiApp === app.id ? '#38E078' : '#E3DEDE',
                   backgroundColor: '#fff',
-                  marginRight: 8,
-                  marginBottom: 8,
+                  marginBottom: 12,
+                  marginTop: 2,
                 },
               ]}
               onPress={() => {
@@ -427,9 +432,12 @@ export default function PaymentScreen() {
                   setSelectedPaymentMethod('');
                 } else handleUpiSelect(app.id);
               }}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              {app.logo ? (
+              {/* Icon logic */}
+              {app.id === 'custom-saved' ? (
+                <Image source={require('../../assets/upi/bhim.png')} style={{ width: 28, height: 28, marginRight: 10 }} resizeMode="contain" />
+              ) : app.logo ? (
                 <Image source={app.logo} style={{ width: 28, height: 28, marginRight: 10 }} resizeMode="contain" />
               ) : (
                 <Text style={{ fontSize: 22, marginRight: 10 }}>{app.iconLabel}</Text>
@@ -438,66 +446,7 @@ export default function PaymentScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        {selectedUpiApp === 'custom' && (
-          <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-            <TextInput
-              style={{ height: 48, borderRadius: 12, borderWidth: 1, borderColor: '#E3DEDE', backgroundColor: '#fff', paddingHorizontal: 12, fontSize: 16, marginBottom: 4 }}
-              placeholder="Enter your UPI ID"
-              value={customUpi}
-              onChangeText={setCustomUpi}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Text style={{ color: upiVerified === true ? '#38E078' : upiVerified === false ? 'red' : '#827069', fontSize: 14 }}>
-              {upiVerified === true ? 'Verified' : upiVerified === false ? 'Invalid UPI ID' : 'Live verification indicator'}
-            </Text>
-            <TouchableOpacity
-              style={{ marginTop: 8, backgroundColor: '#38E078', borderRadius: 20, height: 40, justifyContent: 'center', alignItems: 'center' }}
-              onPress={async () => {
-                setUpiVerified(true);
-                // Save UPI ID to user_payment_method_upi for this user, hashed
-                const userId = await getCurrentUserId();
-                if (!userId || typeof userId !== 'string' || userId.length < 5) {
-                  console.error('Invalid userId for UPI insert:', userId);
-                  Alert.alert('User not found', 'Please log in again.');
-                  return;
-                }
-                if (customUpi && supabase) {
-                  const hashedUpi = await hashUpiId(customUpi);
-                  const insertData = {
-                    user_id: userId, // correct: set user_id, not id
-                    upi_id: customUpi,
-                    encrypted_details: hashedUpi,
-                    created_at: new Date().toISOString(),
-                    type: 'upi',
-                  };
-                  console.log('Attempting UPI insert:', insertData);
-                  const { error } = await supabase.from('user_payment_method_upi').insert([insertData]);
-                  if (!error) {
-                    console.log('UPI uploaded for user:', userId, customUpi);
-                  } else {
-                    console.error('UPI upload error:', error, 'Insert data:', insertData);
-                    Alert.alert('Error', 'Failed to save UPI. Please try again.');
-                    return;
-                  }
-                  // Fetch latest and update UI
-                  const { data } = await supabase
-                    .from('user_payment_method_upi')
-                    .select('*')
-                    .eq('user_id', userId) // correct: query by user_id
-                    .order('created_at', { ascending: false });
-                  if (data && data.length > 0) {
-                    setCustomUpiSaved(data[0].upi_id);
-                    setSelectedUpiApp('custom-saved');
-                    setCustomUpi(data[0].upi_id);
-                  }
-                }
-              }}
-            >
-              <Text style={{ color: '#0D1A12', fontWeight: '700', fontSize: 14 }}>Link and Proceed</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Only render AddUpi, remove redundant inline UPI input */}
         {selectedUpiApp === 'custom' && currentUserId && (
           <AddUpi
             userId={currentUserId}
@@ -531,13 +480,119 @@ export default function PaymentScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Wallet</Text>
         </View>
-        {renderPaymentMethodItem(paymentMethods[3])}
+        <View style={{ backgroundColor: '#fff', borderRadius: 16, marginHorizontal: 12, marginBottom: 16, overflow: 'hidden' }}>
+          {/* Paytm Wallet */}
+          <TouchableOpacity
+            style={[
+              { flexDirection: 'row', alignItems: 'center', height: 56, paddingLeft: 16, paddingRight: 16, backgroundColor: selectedPaymentMethod === 'wallet-paytm' ? '#E6F9EF' : '#F7FAFA', borderBottomWidth: 1, borderBottomColor: '#E3DEDE' },
+              selectedPaymentMethod === 'wallet-paytm' && { borderLeftWidth: 4, borderLeftColor: '#38E078', borderRadius: 12 }
+            ]}
+            onPress={() => handlePaymentMethodSelect('wallet-paytm')}
+            activeOpacity={0.85}
+          >
+            <View style={{ width: 40, height: 40, backgroundColor: '#E8F2ED', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+              <Image source={require('../../assets/upi/paytm.png')} style={{ width: 24, height: 24 }} resizeMode="contain" />
+            </View>
+            <Text style={{ flex: 1, color: '#0D1A12', fontSize: 16, fontFamily: 'Plus Jakarta Sans', fontWeight: '400', lineHeight: 24, marginLeft: 16 }}>Paytm Wallet</Text>
+            {selectedPaymentMethod === 'wallet-paytm' && (
+              <Ionicons name="checkmark" size={22} color="#38E078" style={{ marginLeft: 8 }} />
+            )}
+          </TouchableOpacity>
+          {/* Amazon Pay */}
+          <TouchableOpacity
+            style={[
+              { flexDirection: 'row', alignItems: 'center', height: 56, paddingLeft: 16, paddingRight: 16, backgroundColor: selectedPaymentMethod === 'wallet-amazonpay' ? '#E6F9EF' : '#F7FAFA', borderBottomWidth: 1, borderBottomColor: '#E3DEDE' },
+              selectedPaymentMethod === 'wallet-amazonpay' && { borderLeftWidth: 4, borderLeftColor: '#38E078', borderRadius: 12 }
+            ]}
+            onPress={() => handlePaymentMethodSelect('wallet-amazonpay')}
+            activeOpacity={0.85}
+          >
+            <View style={{ width: 40, height: 40, backgroundColor: '#E8F2ED', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+              <Image source={require('../../assets/upi/amazonpay.png')} style={{ width: 24, height: 24 }} resizeMode="contain" />
+            </View>
+            <Text style={{ flex: 1, color: '#0D1A12', fontSize: 16, fontFamily: 'Plus Jakarta Sans', fontWeight: '400', lineHeight: 24, marginLeft: 16 }}>Amazon Pay</Text>
+            {selectedPaymentMethod === 'wallet-amazonpay' && (
+              <Ionicons name="checkmark" size={22} color="#38E078" style={{ marginLeft: 8 }} />
+            )}
+          </TouchableOpacity>
+          {/* PhonePe Wallet */}
+          <TouchableOpacity
+            style={[
+              { flexDirection: 'row', alignItems: 'center', height: 56, paddingLeft: 16, paddingRight: 16, backgroundColor: selectedPaymentMethod === 'wallet-phonepe' ? '#E6F9EF' : '#F7FAFA', borderBottomWidth: 1, borderBottomColor: '#E3DEDE' },
+              selectedPaymentMethod === 'wallet-phonepe' && { borderLeftWidth: 4, borderLeftColor: '#38E078', borderRadius: 12 }
+            ]}
+            onPress={() => handlePaymentMethodSelect('wallet-phonepe')}
+            activeOpacity={0.85}
+          >
+            <View style={{ width: 40, height: 40, backgroundColor: '#E8F2ED', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+              <Image source={require('../../assets/upi/phonepe.png')} style={{ width: 24, height: 24 }} resizeMode="contain" />
+            </View>
+            <Text style={{ flex: 1, color: '#0D1A12', fontSize: 16, fontFamily: 'Plus Jakarta Sans', fontWeight: '400', lineHeight: 24, marginLeft: 16 }}>PhonePe Wallet</Text>
+            {selectedPaymentMethod === 'wallet-phonepe' && (
+              <Ionicons name="checkmark" size={22} color="#38E078" style={{ marginLeft: 8 }} />
+            )}
+          </TouchableOpacity>
+          {/* Mobikwik */}
+          <TouchableOpacity
+            style={[
+              { flexDirection: 'row', alignItems: 'center', height: 56, paddingLeft: 16, paddingRight: 16, backgroundColor: selectedPaymentMethod === 'wallet-mobikwik' ? '#E6F9EF' : '#F7FAFA' },
+              selectedPaymentMethod === 'wallet-mobikwik' && { borderLeftWidth: 4, borderLeftColor: '#38E078', borderRadius: 12 }
+            ]}
+            onPress={() => handlePaymentMethodSelect('wallet-mobikwik')}
+            activeOpacity={0.85}
+          >
+            <View style={{ width: 40, height: 40, backgroundColor: '#E8F2ED', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+              <Image source={require('../../assets/upi/mobikwik.jpeg')} style={{ width: 24, height: 24 }} resizeMode="contain" />
+            </View>
+            <Text style={{ flex: 1, color: '#0D1A12', fontSize: 16, fontFamily: 'Plus Jakarta Sans', fontWeight: '400', lineHeight: 24, marginLeft: 16 }}>Mobikwik</Text>
+            {selectedPaymentMethod === 'wallet-mobikwik' && (
+              <Ionicons name="checkmark" size={22} color="#38E078" style={{ marginLeft: 8 }} />
+            )}
+          </TouchableOpacity>
+        </View>
 
         {/* Cash Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Cash</Text>
         </View>
-        {renderPaymentMethodItem(paymentMethods[4])}
+        {/* Custom Pay on Delivery (Cash/COD) UI */}
+        <TouchableOpacity
+          style={[
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: selectedPaymentMethod === 'cash-cod' ? '#E6F9EF' : '#fff',
+              borderRadius: 16,
+              marginHorizontal: 12,
+              marginBottom: 16,
+              borderLeftWidth: selectedPaymentMethod === 'cash-cod' ? 4 : 0,
+              borderLeftColor: selectedPaymentMethod === 'cash-cod' ? '#38E078' : 'transparent',
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              shadowColor: '#000',
+              shadowOpacity: 0.03,
+              shadowRadius: 2,
+              shadowOffset: { width: 0, height: 1 },
+            },
+          ]}
+          onPress={() => handlePaymentMethodSelect('cash-cod')}
+          activeOpacity={0.85}
+        >
+          {/* Icon */}
+          <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: '#F7FAFA', justifyContent: 'center', alignItems: 'center', marginRight: 12, borderWidth: 1, borderColor: '#E3DEDE' }}>
+            {/* Use a rupee icon or fallback */}
+            <Ionicons name="card-outline" size={22} color="#0D1A12" />
+          </View>
+          {/* Texts */}
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#0D1A12', fontSize: 17, fontWeight: '700', fontFamily: 'Plus Jakarta Sans' }}>Pay on Delivery</Text>
+            <Text style={{ color: '#827069', fontSize: 15, fontWeight: '400', marginTop: 2 }}>Pay in cash or pay online.</Text>
+          </View>
+          {/* Checkmark if selected */}
+          {selectedPaymentMethod === 'cash-cod' && (
+            <Ionicons name="checkmark" size={22} color="#38E078" style={{ marginLeft: 8 }} />
+          )}
+        </TouchableOpacity>
 
         {/* Promo Code Section - after all payment methods */}
         <View style={styles.sectionHeader}>
@@ -545,7 +600,7 @@ export default function PaymentScreen() {
         </View>
         <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
           {/* Manual promo code entry */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
             <TextInput
               style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#E3DEDE', backgroundColor: '#fff', paddingHorizontal: 12, fontSize: 16 }}
               placeholder="Enter promo code"
@@ -555,11 +610,23 @@ export default function PaymentScreen() {
               autoCorrect={false}
             />
             <TouchableOpacity
-              style={{ marginLeft: 8, backgroundColor: '#38E078', borderRadius: 10, paddingHorizontal: 18, height: 44, justifyContent: 'center', alignItems: 'center' }}
+              style={{ backgroundColor: '#38E078', borderRadius: 10, paddingHorizontal: 18, height: 44, justifyContent: 'center', alignItems: 'center' }}
               onPress={handleApplyPromo}
+              activeOpacity={0.8}
             >
               <Text style={{ color: '#0D1A12', fontWeight: '700', fontSize: 15 }}>Apply</Text>
             </TouchableOpacity>
+            {/* Uniform cross button to remove selected promo */}
+            {selectedPromo && (
+              <TouchableOpacity
+                style={{ marginLeft: 0, width: 32, height: 32, justifyContent: 'center', alignItems: 'center' }}
+                onPress={() => { setSelectedPromo(null); setPromoInput(''); setPromoError(null); }}
+                accessibilityLabel="Remove promo code"
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={22} color="#38E078" />
+              </TouchableOpacity>
+            )}
           </View>
           {promoError && <Text style={{ color: 'red', fontSize: 14, marginBottom: 4 }}>{promoError}</Text>}
           {/* Only show MAID10 by default */}

@@ -4,7 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Image, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { getUser } from '../../utils/session'; // adjust path if needed
+import { getCurrentUserIdFromUsersTable } from '../../utils/session'; // adjust path if needed
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -77,21 +77,8 @@ export default function AddCardScreen() {
     }
     setLoading(true);
     try {
-      // Try to get user from Supabase Auth first
-      let userId: string | undefined;
-      if (supabase && supabase.auth && supabase.auth.getUser) {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (user && user.id) {
-          userId = user.id;
-        }
-      }
-      // If not found, get from session
-      if (!userId) {
-        const sessionUser = await getUser();
-        if (sessionUser && sessionUser.id) {
-          userId = sessionUser.id;
-        }
-      }
+      // Always use custom users table ID
+      const userId = await getCurrentUserIdFromUsersTable();
       if (!userId) {
         Alert.alert('Error', 'User not authenticated. Please log in again.');
         setLoading(false);
@@ -108,7 +95,7 @@ export default function AddCardScreen() {
       const brand = getCardBrand(rawCardNumber);
       if (saveCard) {
         const { error } = await supabase
-          .from('user_payment_methods')
+          .from('user_payment_methods_cards')
           .insert([
             {
               user_id: userId,
@@ -118,15 +105,17 @@ export default function AddCardScreen() {
               brand
             }
           ]);
-        if (error) throw error;
+        if (!error) {
+          Alert.alert('Success', 'Card saved successfully!');
+          router.back();
+        } else {
+          Alert.alert('Error', 'Failed to save card.');
+        }
       }
-      Alert.alert('Success', 'Card added successfully!');
-      router.back();
-    } catch (err: any) {
-      Alert.alert('Error', `Failed to save card. ${err?.message || err}`);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      Alert.alert('Error', 'An error occurred.');
     }
+    setLoading(false);
   };
 
   const cardBrand = getCardBrand(cardNumber.replace(/\s/g, ''));
