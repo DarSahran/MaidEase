@@ -1,3 +1,5 @@
+import { supabase } from '@/constants/supabase';
+import { getUser } from '@/utils/session';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
@@ -15,16 +17,55 @@ export default function PaymentProcessingScreen() {
   React.useEffect(() => {
     setStage(1); // Show spinner after mount
     const spinnerTimeout = setTimeout(() => setStage(2), 1200); // Show checkmark after 1.2s
-    const successTimeout = setTimeout(() => {
-      router.replace({
-        pathname: '/(payment)/payment-success',
-        params: {
-          orderData: JSON.stringify(orderData),
-          paymentMethod: JSON.stringify(paymentMethod),
-          promoCode: params.promoCode || '',
+    const saveAndGo = async () => {
+      // Save booking to Supabase
+      try {
+        const user = await getUser();
+        const userId = user?.id;
+        if (userId) {
+          const serviceDetails = {
+            moppingType: orderData.moppingType,
+            disinfectant: orderData.disinfectant,
+            mopProvider: orderData.broomProvider,
+            selectedRooms: orderData.rooms,
+            notes: orderData.notes
+          };
+          await supabase.from('booking_history').insert([
+            {
+              user_id: userId,
+              service_id: orderData.service_id || null,
+              service_name: orderData.service || '',
+              service_type: orderData.service_type || '',
+              booking_date: orderData.date ? orderData.date.split('T')[0] : null,
+              booking_time: orderData.time || null,
+              duration_minutes: orderData.duration_minutes || 60,
+              status: 'completed',
+              total_price: orderData.costs?.final_total || orderData.costs?.total || orderData.estimatedCost || 0,
+              maid_name: orderData.maidName || '',
+              full_address: [orderData.address?.houseNumber, orderData.address?.street, orderData.address?.city, orderData.address?.state, orderData.address?.pincode].filter(Boolean).join(', '),
+              special_instructions: orderData.notes || null,
+              service_details: serviceDetails,
+              payment_method: paymentMethod?.id || paymentMethod?.type || paymentMethod?.title || 'cash',
+              payment_status: 'paid'
+            }
+          ]);
         }
-      });
-    }, 2200); // Go to success after 2.2s
+      } catch (e) {
+        // ignore
+      }
+      setStage(2);
+      setTimeout(() => {
+        router.replace({
+          pathname: '/(payment)/payment-success',
+          params: {
+            orderData: JSON.stringify(orderData),
+            paymentMethod: JSON.stringify(paymentMethod),
+            promoCode: params.promoCode || '',
+          }
+        });
+      }, 1000);
+    };
+    const successTimeout = setTimeout(saveAndGo, 1200);
     return () => {
       clearTimeout(spinnerTimeout);
       clearTimeout(successTimeout);

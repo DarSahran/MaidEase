@@ -61,7 +61,7 @@ export default function PaymentSuccessScreen() {
 
       // Debug: log all incoming data
       console.log('orderData:', orderData);
-      console.log('params:', params);
+      // console.log('params:', params);
 
       // Always get user from getUser utility
       let userId = null;
@@ -71,7 +71,7 @@ export default function PaymentSuccessScreen() {
       } catch (e) {
         console.log('getUser error:', e);
       }
-      console.log('Resolved userId:', userId);
+      
 
       if (!userId) {
         setError('Booking history not saved: user_id is missing');
@@ -163,26 +163,105 @@ export default function PaymentSuccessScreen() {
         }
       }
 
+      // Ensure all required fields for booking_history are present and valid
+      // Allowed service types from schema
+      const allowedServiceTypes = [
+        'cleaning', 'laundry', 'utensils', 'babysitting',
+        'brooming', 'mopping', 'dusting', 'kitchen', 'bathroom',
+        'washing-clothes', 'washing-utensils'
+      ];
+      // Fallbacks for required fields
+      const safeServiceName = serviceName || 'Cleaning';
+      let safeServiceType = serviceType || 'cleaning';
+      if (!allowedServiceTypes.includes(safeServiceType)) {
+        // Try to map from serviceName if possible
+        const lower = safeServiceName.toLowerCase();
+        safeServiceType = allowedServiceTypes.includes(lower) ? lower : 'cleaning';
+      }
+      const safeMaidName = maidName || 'Unknown Maid';
+      const safeMaidRating = maidRating !== null && maidRating !== undefined ? maidRating : 0.0;
+      const safeUserRating = userRating !== null && userRating !== undefined ? userRating : null;
+      const safeFullAddress = fullAddress || 'Unknown Address';
+      const safeBookingDate = bookingDate || dayjs().format('YYYY-MM-DD');
+      const safeBookingTime = bookingTime || '10:00:00';
+      const safeTotalPrice = totalPrice || 299.00;
+      const safeDurationMinutes = durationMinutes || 60;
+      const safeStatus = status || 'completed';
+      const safePaymentMethod = paymentMethod || 'cash';
+      const safePaymentStatus = paymentStatus || 'paid';
+      const safeSpecialInstructions = specialInstructions || '';
+      // service_id, maid_id, user_id must be valid UUIDs or null
+      const safeServiceId = resolvedServiceId || null;
+      const safeMaidId = maidId || null;
+      const safeUserId = userId || null;
+      // service_details: always a valid object
+      let serviceDetails: any = {};
+      switch (safeServiceType) {
+        case 'mopping':
+          serviceDetails = {
+            moppingType: parsedOrderData.moppingType,
+            disinfectant: parsedOrderData.disinfectant,
+            mopProvider: parsedOrderData.mopProvider || parsedOrderData.broomProvider,
+            selectedRooms: parsedOrderData.rooms,
+            notes: parsedOrderData.notes
+          };
+          break;
+        case 'brooming':
+          serviceDetails = {
+            broomProvider: parsedOrderData.broomProvider,
+            selectedRooms: parsedOrderData.rooms,
+            notes: parsedOrderData.notes
+          };
+          break;
+        case 'dusting':
+          serviceDetails = {
+            selectedRooms: parsedOrderData.rooms,
+            notes: parsedOrderData.notes
+          };
+          break;
+        case 'kitchen':
+        case 'bathroom':
+        case 'washing-clothes':
+        case 'washing-utensils':
+          serviceDetails = {
+            notes: parsedOrderData.notes
+          };
+          break;
+        case 'babysitting':
+          serviceDetails = {
+            notes: parsedOrderData.notes
+          };
+          break;
+        default:
+          serviceDetails = {
+            notes: parsedOrderData.notes
+          };
+      }
+      // Remove undefined/null fields
+      serviceDetails = Object.fromEntries(
+        Object.entries(serviceDetails).filter(([_, v]) => v !== undefined && v !== null)
+      );
       try {
         const { data, error: insertError } = await supabase.from('booking_history').insert([
           {
-            user_id: userId,
-            service_id: resolvedServiceId,
-            maid_id: maidId,
-            service_name: serviceName,
-            service_type: serviceType,
-            booking_date: bookingDate,
-            booking_time: bookingTime,
-            duration_minutes: durationMinutes,
-            status,
-            total_price: totalPrice,
-            maid_name: maidName,
-            maid_rating: maidRating,
-            user_rating: userRating,
-            full_address: fullAddress,
-            special_instructions: specialInstructions,
-            payment_method: paymentMethod,
-            payment_status: paymentStatus,
+            user_id: safeUserId,
+            service_id: safeServiceId,
+            maid_id: safeMaidId,
+            service_name: safeServiceName,
+            service_type: safeServiceType,
+            booking_date: safeBookingDate,
+            booking_time: safeBookingTime,
+            duration_minutes: safeDurationMinutes,
+            status: safeStatus,
+            total_price: safeTotalPrice,
+            maid_name: safeMaidName,
+            maid_rating: safeMaidRating,
+            user_rating: safeUserRating,
+            full_address: safeFullAddress,
+            special_instructions: safeSpecialInstructions,
+            payment_method: safePaymentMethod,
+            payment_status: safePaymentStatus,
+            service_details: serviceDetails
           }
         ]).select();
         if (insertError) throw insertError;
@@ -256,7 +335,7 @@ export default function PaymentSuccessScreen() {
         <TouchableOpacity style={styles.actionButton} onPress={() => router.replace('/(main)/service/real-time-tracking')}>
           <Text style={styles.actionButtonText}>Track Maid</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]} onPress={() => router.replace('/welcome')}>
+        <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]} onPress={() => router.replace('../(main)')}>
           <Text style={[styles.actionButtonText, styles.secondaryButtonText]}>Back to Home</Text>
         </TouchableOpacity>
       </View>

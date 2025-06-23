@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
 import BookingCard from '../../components/dashboard/BookingCard';
 import HomeSnapshot from '../../components/dashboard/HomeSnapshot';
 import QuickActions from '../../components/dashboard/QuickActions';
@@ -38,66 +39,70 @@ export default function DashboardScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.appName}>MaidEasy</Text>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => router.push('/(settings)/settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color="#0D1C0D" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Greeting */}
-        <View style={styles.greetingSection}>
-          <Text style={styles.greeting}>
-            {(() => {
-              const hour = new Date().getHours();
-              let greeting = 'Good Morning';
-              if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
-              else if (hour >= 17 || hour < 4) greeting = 'Good Evening';
-              const capitalize = (str: string) =>
-                str.charAt(0).toUpperCase() + str.slice(1);
-              return `👋 ${greeting}, ${user && user.first_name ? capitalize(user.first_name) : ''}!`;
-            })()}
-          </Text>
-          <Text style={styles.subtitle}>Let's make your day a little cleaner.</Text>
-        </View>
-
-        {/* Search Bar */}
-        <SearchBar />
-
-        {/* Quick Actions */}
-        <QuickActions />
-
-        {/* Current Booking */}
-        <BookingCard />
-
-        {/* Services Grid */}
-        <View style={styles.servicesSection}>
-          <View style={styles.servicesGrid}>
-            {services.map((service, index) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                onPress={() => handleServicePress(service.id)}
-              />
-            ))}
+    <SafeAreaViewContext style={{ flex: 1, backgroundColor: '#F7FCF7' }}>
+      <SafeAreaView style={styles.container}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <View style={styles.headerWrapper}>
+            <View style={styles.headerCenteredRow}>
+              <Text style={styles.appName}>MaidEase</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => router.push('/(settings)/settings')}
+            >
+              <Ionicons name="settings-outline" size={24} color="#0D1C0D" />
+            </TouchableOpacity>
           </View>
 
-          {/* More Services Button */}
-          <TouchableOpacity style={styles.moreServicesButton}>
-            <Text style={styles.moreServicesText}>+ More Services</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Greeting */}
+          <View style={styles.greetingSection}>
+            <Text style={styles.greeting}>
+              {(() => {
+                const hour = new Date().getHours();
+                let greeting = 'Good Morning';
+                if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
+                else if (hour >= 17 || hour < 4) greeting = 'Good Evening';
+                const capitalize = (str: string) =>
+                  str.charAt(0).toUpperCase() + str.slice(1);
+                return `👋 ${greeting}, ${user && user.first_name ? capitalize(user.first_name) : ''}!`;
+              })()}
+            </Text>
+            <Text style={styles.subtitle}>Let's make your day a little cleaner.</Text>
+          </View>
 
-        {/* Home Snapshot */}
-        <HomeSnapshot />
-      </ScrollView>
-    </SafeAreaView>
+          {/* Search Bar */}
+          <SearchBar />
+
+          {/* Quick Actions */}
+          <QuickActions />
+
+          {/* Current Booking */}
+          <BookingCard />
+
+          {/* Services Grid */}
+          <View style={styles.servicesSection}>
+            <View style={styles.servicesGrid}>
+              {services.map((service, index) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  onPress={() => handleServicePress(service.id)}
+                />
+              ))}
+            </View>
+
+            {/* More Services Button */}
+            <TouchableOpacity style={styles.moreServicesButton}>
+              <Text style={styles.moreServicesText}>+ More Services</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Home Snapshot */}
+          <HomeSnapshot />
+        </ScrollView>
+      </SafeAreaView>
+    </SafeAreaViewContext>
   );
 }
 
@@ -106,13 +111,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7FCF7',
   },
-  header: {
+  headerWrapper: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 8,
+    backgroundColor: '#F7FCF7',
+  },
+  headerCenteredRow: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
   },
   appName: {
     fontSize: 18,
@@ -127,6 +139,9 @@ const styles = StyleSheet.create({
     height: 48,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'absolute',
+    right: 16,
+    top: 0,
   },
   greetingSection: {
     paddingHorizontal: 16,

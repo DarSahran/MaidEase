@@ -76,7 +76,9 @@ export default function OrderSummary() {
   const handleProceedToPayment = async () => {
     // Prepare service_details JSON
     const serviceDetails = {
-      broomProvider: bookingData.broomProvider,
+      moppingType: bookingData.moppingType,
+      disinfectant: bookingData.disinfectant,
+      mopProvider: bookingData.broomProvider,
       selectedRooms: bookingData.rooms,
       notes: bookingData.notes
     };
@@ -86,8 +88,8 @@ export default function OrderSummary() {
         {
           user_id: bookingData.userId, // Make sure userId is available in bookingData
           service_id: bookingData.serviceId || null, // Optional
-          service_name: 'Brooming',
-          service_type: 'brooming',
+          service_name: 'Mopping',
+          service_type: 'mopping',
           booking_date: bookingData.date ? bookingData.date.split('T')[0] : null,
           booking_time: bookingData.time || null,
           duration_minutes: bookingData.duration_minutes || 60,
@@ -132,24 +134,46 @@ export default function OrderSummary() {
           <Text style={styles.sectionTitle}>Service Details</Text>
         </View>
 
-        {/* Brooming Service */}
+        {/* Mopping Service */}
         <View style={styles.serviceRow}>
           <View style={styles.serviceIcon}>
             <Ionicons name="home-outline" size={24} color="#0F1A14" />
           </View>
           <View style={styles.serviceDetails}>
-            <Text style={styles.serviceName}>Brooming</Text>
+            <Text style={styles.serviceName}>Mopping</Text>
             <Text style={styles.serviceDescription}>{getSelectedRoomsText()}</Text>
           </View>
         </View>
 
-        {/* Broom Provider */}
+        {/* Mopping Type */}
+        <View style={styles.serviceRow}>
+          <View style={styles.serviceIcon}>
+            <Ionicons name="water-outline" size={24} color="#0F1A14" />
+          </View>
+          <View style={styles.serviceDetails}>
+            <Text style={styles.serviceName}>Mopping Type</Text>
+            <Text style={styles.serviceDescription}>{bookingData.moppingType ? (bookingData.moppingType.charAt(0).toUpperCase() + bookingData.moppingType.slice(1)) : 'Not Provided'}</Text>
+          </View>
+        </View>
+
+        {/* Disinfectant */}
+        <View style={styles.serviceRow}>
+          <View style={styles.serviceIcon}>
+            <Ionicons name="flask-outline" size={24} color="#0F1A14" />
+          </View>
+          <View style={styles.serviceDetails}>
+            <Text style={styles.serviceName}>Disinfectant</Text>
+            <Text style={styles.serviceDescription}>{bookingData.disinfectant || 'None'}</Text>
+          </View>
+        </View>
+
+        {/* Mop Provider */}
         <View style={styles.serviceRow}>
           <View style={styles.serviceIcon}>
             <Ionicons name="book-outline" size={24} color="#0F1A14" />
           </View>
           <View style={styles.serviceDetails}>
-            <Text style={styles.serviceName}>Broom</Text>
+            <Text style={styles.serviceName}>Mop Provider</Text>
             <Text style={styles.serviceDescription}>{bookingData.broomProvider === 'maid' ? 'Maid Brings (+₹20)' : 'User Provides'}</Text>
           </View>
         </View>
