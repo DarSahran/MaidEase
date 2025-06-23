@@ -160,8 +160,25 @@ export default function PaymentScreen() {
     Alert.alert('Change Wallet', 'Wallet change functionality will be implemented here');
   };
 
-  const handleContinue = () => {
-    // Accept either card/wallet/cash or UPI as valid payment
+  // Helper to get cost breakdown from real confirmation page data
+  const getCostBreakdown = () => {
+    // Use the real keys from confirmation page
+    const base = orderData.costs?.basePrice ?? 0;
+    const platform = orderData.costs?.platformFee ?? 0;
+    const total = orderData.costs?.total ?? (base + platform);
+    let discount = 0;
+    if (selectedPromo && selectedPromo.discount_type && selectedPromo.discount_value) {
+      if (selectedPromo.discount_type === 'percent') {
+        discount = (total * selectedPromo.discount_value) / 100;
+      } else if (selectedPromo.discount_type === 'amount') {
+        discount = selectedPromo.discount_value;
+      }
+    }
+    const finalTotal = Math.max(0, total - discount);
+    return { base, platform, discount, total, finalTotal };
+  };
+
+  const handleContinue = async () => {
     if (!selectedPaymentMethod && !selectedUpiApp) {
       Alert.alert('Payment Method Required', 'Please select a payment method to continue');
       return;
@@ -188,10 +205,45 @@ export default function PaymentScreen() {
         };
       }
     }
+
+    // Fetch service_id from Supabase
+    let serviceId = null;
+    if (supabase && orderData.service_name) {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id')
+        .eq('name', orderData.service_name)
+        .single();
+      if (!error && data) {
+        serviceId = data.id;
+      }
+    }
+
+    const { base, platform, discount, total, finalTotal } = getCostBreakdown();
+
+    // Build new orderData to pass forward
+    const newOrderData = {
+      ...orderData,
+      costs: {
+        basePrice: base,
+        platformFee: platform,
+        total,
+        discount,
+        final_total: finalTotal,
+      },
+      discounted_total: finalTotal,
+      promo: selectedPromo ? {
+        code: selectedPromo.code,
+        discount_type: selectedPromo.discount_type,
+        discount_value: selectedPromo.discount_value,
+      } : null,
+      service_id: serviceId,
+    };
+
     router.push({
-      pathname: '/(main)/service/payment-processing' as any,
+      pathname: '/(payment)/payment-processing',
       params: {
-        orderData: JSON.stringify(orderData),
+        orderData: JSON.stringify(newOrderData),
         paymentMethod: JSON.stringify(selectedMethod),
         promoCode: selectedPromo?.code || '',
       }
@@ -661,12 +713,16 @@ export default function PaymentScreen() {
         <View style={styles.costSummarySection}>
           <Text style={styles.costSummaryTitle}>Cost Summary</Text>
           <View style={styles.costRow}>
-            <Text style={styles.costLabel}>Total</Text>
-            <Text style={styles.costValue}>₹{getDiscountedTotal()}</Text>
+            <Text style={styles.costLabel}>Service Price</Text>
+            <Text style={styles.costValue}>₹{getCostBreakdown().base}</Text>
+          </View>
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>Platform Fee</Text>
+            <Text style={styles.costValue}>₹{getCostBreakdown().platform}</Text>
           </View>
           {selectedPromo && (
             <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Promo ({selectedPromo.code})</Text>
+              <Text style={styles.costLabel}>Discount ({selectedPromo.code})</Text>
               <Text style={[styles.costValue, { color: '#38E078' }]}>-
                 {selectedPromo.discount_type === 'percent'
                   ? `${selectedPromo.discount_value}%`
@@ -674,6 +730,10 @@ export default function PaymentScreen() {
               </Text>
             </View>
           )}
+          <View style={styles.costRow}>
+            <Text style={[styles.costLabel, { fontWeight: '700' }]}>Final Total</Text>
+            <Text style={[styles.costValue, { fontWeight: '700' }]}>₹{getCostBreakdown().finalTotal}</Text>
+          </View>
         </View>
       </ScrollView>
 

@@ -52,3 +52,25 @@ export async function getCurrentUserIdFromUsersTable() {
   if (error || !data) return null; // Do not fallback to Auth user id
   return data.id;
 }
+
+// Universal session getter for user_id (Expo/React Native and web)
+export async function getSession() {
+  // Try AsyncStorage (React Native/Expo)
+  try {
+    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+    const session = await AsyncStorage.getItem('session');
+    if (session) {
+      try {
+        const sessionObj = JSON.parse(session);
+        return sessionObj.user?.id || sessionObj.id;
+      } catch {}
+    }
+  } catch {}
+  // Try globalThis for web (if you ever run web)
+  if (typeof globalThis !== 'undefined' && globalThis.session) {
+    try {
+      return globalThis.session.user?.id || globalThis.session.id;
+    } catch {}
+  }
+  return null;
+}

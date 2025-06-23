@@ -280,19 +280,41 @@ export default function BroomingService() {
     Alert.alert('Incomplete Form', 'Please select date, time, and at least one room.');
     return;
   }
-  
+
+  // Determine the correct address object to use
+  let selectedAddress = address;
+  if (locationMethod === 'account') {
+    if (selectedSavedAddressType === 'main' && accountAddress) {
+      selectedAddress = accountAddress;
+    } else if (selectedSavedAddressType === 'user_address' && selectedSavedUserAddressId) {
+      const addr = userAddresses.find(a => a.id === selectedSavedUserAddressId);
+      if (addr) {
+        selectedAddress = {
+          houseNumber: addr.house_number || '',
+          street: addr.street || '',
+          city: addr.city || '',
+          state: addr.state || '',
+          pincode: addr.pincode || ''
+        };
+      }
+    }
+  }
+
+  // Format date as ISO string and pass time slot as selected
   const bookingData = {
     service: 'Brooming',
-    address,
-    date: selectedDate,
+    service_type: 'brooming',
+    address: selectedAddress,
+    date: selectedDate ? selectedDate.toISOString() : '',
     time: selectedTime,
     rooms: selectedRooms,
     broomProvider,
     notes,
     locationMethod,
-    estimatedCost
+    estimatedCost,
+    duration_minutes: getDefaultDuration()
   };
-  
+
   // Navigate to order summary
   router.push({
     pathname: '/(confirmation)/brooming_confirmation',
