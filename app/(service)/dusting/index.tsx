@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { getUser } from '../../../utils/session';
 
-export default function BroomingService() {
+export default function DustingService() {
   const router = useRouter();
 
   // Location states

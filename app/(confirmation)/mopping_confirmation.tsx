@@ -88,7 +88,7 @@ export default function OrderSummary() {
         {
           user_id: bookingData.userId, // Make sure userId is available in bookingData
           service_id: bookingData.serviceId || null, // Optional
-          service_name: 'Mopping',
+          service_name: 'Mopping Cleaning', // <-- updated for clarity
           service_type: 'mopping',
           booking_date: bookingData.date ? bookingData.date.split('T')[0] : null,
           booking_time: bookingData.time || null,

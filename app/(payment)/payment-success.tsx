@@ -150,13 +150,24 @@ export default function PaymentSuccessScreen() {
       let resolvedServiceId = serviceId;
       if (!resolvedServiceId && serviceName && supabase) {
         try {
-          const { data: serviceRow, error: serviceError } = await supabase
+          // Try by name first
+          let { data: serviceRow, error: serviceError } = await supabase
             .from('services')
             .select('id')
             .eq('name', serviceName)
             .single();
           if (!serviceError && serviceRow) {
             resolvedServiceId = serviceRow.id;
+          } else {
+            // Try by category if name fails
+            const { data: catRow, error: catError } = await supabase
+              .from('services')
+              .select('id')
+              .eq('category', serviceType)
+              .single();
+            if (!catError && catRow) {
+              resolvedServiceId = catRow.id;
+            }
           }
         } catch (e) {
           // ignore
@@ -199,48 +210,74 @@ export default function PaymentSuccessScreen() {
       switch (safeServiceType) {
         case 'mopping':
           serviceDetails = {
-            moppingType: parsedOrderData.moppingType,
-            disinfectant: parsedOrderData.disinfectant,
-            mopProvider: parsedOrderData.mopProvider || parsedOrderData.broomProvider,
-            selectedRooms: parsedOrderData.rooms,
-            notes: parsedOrderData.notes
+            moppingType: parsedOrderData.moppingType || '',
+            disinfectant: parsedOrderData.disinfectant || '',
+            mopProvider: parsedOrderData.mopProvider || parsedOrderData.broomProvider || '',
+            selectedRooms: parsedOrderData.rooms || [],
+            notes: parsedOrderData.notes || ''
           };
           break;
         case 'brooming':
           serviceDetails = {
-            broomProvider: parsedOrderData.broomProvider,
-            selectedRooms: parsedOrderData.rooms,
-            notes: parsedOrderData.notes
+            broomProvider: parsedOrderData.broomProvider || '',
+            selectedRooms: parsedOrderData.rooms || [],
+            notes: parsedOrderData.notes || ''
           };
           break;
         case 'dusting':
           serviceDetails = {
-            selectedRooms: parsedOrderData.rooms,
-            notes: parsedOrderData.notes
+            selectedRooms: parsedOrderData.rooms || [],
+            notes: parsedOrderData.notes || ''
           };
           break;
         case 'kitchen':
+          serviceDetails = {
+            kitchenSize: parsedOrderData.kitchenSize || '',
+            appliances: parsedOrderData.appliances || [],
+            greaseLevel: parsedOrderData.greaseLevel || '',
+            materialProvider: parsedOrderData.materialProvider || '',
+            notes: parsedOrderData.notes || ''
+          };
+          break;
         case 'bathroom':
+          serviceDetails = {
+            bathroomType: parsedOrderData.bathroomType || '',
+            materialProvider: parsedOrderData.materialProvider || '',
+            notes: parsedOrderData.notes || ''
+          };
+          break;
         case 'washing-clothes':
+          serviceDetails = {
+            loadType: parsedOrderData.loadType || '',
+            detergentType: parsedOrderData.detergentType || '',
+            materialProvider: parsedOrderData.materialProvider || '',
+            notes: parsedOrderData.notes || ''
+          };
+          break;
         case 'washing-utensils':
           serviceDetails = {
-            notes: parsedOrderData.notes
+            utensilsType: parsedOrderData.utensilsType || '',
+            materialProvider: parsedOrderData.materialProvider || '',
+            notes: parsedOrderData.notes || ''
           };
           break;
         case 'babysitting':
           serviceDetails = {
-            notes: parsedOrderData.notes
+            notes: parsedOrderData.notes || ''
           };
           break;
         default:
           serviceDetails = {
-            notes: parsedOrderData.notes
+            notes: parsedOrderData.notes || ''
           };
       }
-      // Remove undefined/null fields
+      // Remove undefined/null fields but keep empty string/array
       serviceDetails = Object.fromEntries(
         Object.entries(serviceDetails).filter(([_, v]) => v !== undefined && v !== null)
       );
+      // Ensure service is never null or empty
+      const safeService = safeServiceName || 'Cleaning';
+
       try {
         const { data, error: insertError } = await supabase.from('booking_history').insert([
           {

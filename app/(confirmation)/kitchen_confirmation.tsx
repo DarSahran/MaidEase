@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createClient } from '@supabase/supabase-js';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function OrderSummary() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [showPlatformFeeInfo, setShowPlatformFeeInfo] = useState(false);
+  const [kitchenServiceId, setKitchenServiceId] = useState<string | null>(null);
   
   // Parse booking data from previous screen
   const bookingData = params.bookingData ? JSON.parse(params.bookingData as string) : {};
@@ -35,23 +36,19 @@ export default function OrderSummary() {
   // Helper: format time
   const getTimeText = () => bookingData.time || 'Not Provided';
 
-  // Helper: format selected rooms
-  const getSelectedRoomsText = () => {
-    const { rooms } = bookingData;
-    if (!rooms) return 'Not Provided';
-    if (rooms.all) return 'All Rooms';
-    const selectedRooms = [];
-    if (rooms.livingRoom) selectedRooms.push('Living Room');
-    if (rooms.bedroom) selectedRooms.push('Bedroom');
-    if (rooms.kitchen) selectedRooms.push('Kitchen');
-    if (rooms.balcony) selectedRooms.push('Balcony');
-    return selectedRooms.length ? selectedRooms.join(', ') : 'Not Provided';
+  // Kitchen-specific helpers
+  const getKitchenSizeText = () => bookingData.kitchenSize || 'Not Provided';
+  const getAppliancesText = () => {
+    if (!bookingData.appliances || !bookingData.appliances.length) return 'Not Provided';
+    return bookingData.appliances.join(', ');
   };
+  const getGreaseLevelText = () => bookingData.greaseLevel || 'Not Provided';
+  const getMaterialProviderText = () => bookingData.materialProvider === 'maid' ? 'Maid' : 'User';
 
-  // Pricing logic (match brooming/index.tsx)
+  // Pricing logic (match kitchen/index.tsx)
   const calculateCosts = () => {
     const { estimatedCost } = bookingData;
-    let basePrice = typeof estimatedCost === 'number' ? estimatedCost : 60;
+    let basePrice = typeof estimatedCost === 'number' ? estimatedCost : 100;
     // Platform fee fixed at ₹8
     const platformFeeBase = 8;
     // GST on platform fee
@@ -73,21 +70,40 @@ export default function OrderSummary() {
   const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
+  // Fetch the service_id for Kitchen Cleaning on mount
+  useEffect(() => {
+    const fetchKitchenServiceId = async () => {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('services')
+          .select('id')
+          .eq('category', 'kitchen')
+          .single();
+        if (data && data.id) setKitchenServiceId(data.id);
+      }
+    };
+    fetchKitchenServiceId();
+  }, [supabase]);
+
   const handleProceedToPayment = async () => {
-    // Prepare service_details JSON for Dusting
+    // Prepare service_details JSON
     const serviceDetails = {
-      selectedRooms: bookingData.rooms,
-      notes: bookingData.notes
+      kitchenSize: bookingData.kitchenSize || '',
+      appliances: bookingData.appliances || [],
+      greaseLevel: bookingData.greaseLevel || '',
+      materialProvider: bookingData.materialProvider || '',
+      notes: bookingData.notes || ''
     };
     // Insert booking into Supabase
+    const resolvedServiceId = kitchenServiceId || (bookingData.serviceId && bookingData.serviceId !== '' ? bookingData.serviceId : null);
     if (supabase) {
       await supabase.from('booking_history').insert([
         {
-          user_id: bookingData.userId, // Make sure userId is available in bookingData
-          service_id: bookingData.serviceId || null, // Should be set from bookingData
-          maid_id: bookingData.maidId || null, // Add maid_id if available
-          service_name: 'Dusting',
-          service_type: 'dusting',
+          user_id: bookingData.userId,
+          service_id: resolvedServiceId,
+          maid_id: bookingData.maidId && bookingData.maidId !== '' ? bookingData.maidId : null,
+          service_name: 'Kitchen',
+          service_type: 'kitchen',
           booking_date: bookingData.date ? bookingData.date.split('T')[0] : null,
           booking_time: bookingData.time || null,
           duration_minutes: bookingData.duration_minutes || 60,
@@ -98,7 +114,7 @@ export default function OrderSummary() {
           user_rating: bookingData.userRating || 0,
           full_address: getAddressText(),
           special_instructions: bookingData.notes || null,
-          service_details: serviceDetails, // Now always set
+          service_details: serviceDetails,
           payment_method: 'cash',
           payment_status: 'pending'
         }
@@ -109,6 +125,10 @@ export default function OrderSummary() {
       params: {
         orderData: JSON.stringify({
           ...bookingData,
+          service_id: kitchenServiceId || bookingData.serviceId || '6d2fd146-9824-4928-a848-1aa0cb8bdc19',
+          service: 'Kitchen',
+          service_type: 'kitchen',
+          service_details: serviceDetails,
           costs,
           orderId: `ORD${Date.now()}`
         })
@@ -134,14 +154,47 @@ export default function OrderSummary() {
           <Text style={styles.sectionTitle}>Service Details</Text>
         </View>
 
-        {/* Dusting Service */}
+        {/* Kitchen Size */}
         <View style={styles.serviceRow}>
           <View style={styles.serviceIcon}>
-            <Ionicons name="home-outline" size={24} color="#0F1A14" />
+            <Ionicons name="resize-outline" size={24} color="#0F1A14" />
           </View>
           <View style={styles.serviceDetails}>
-            <Text style={styles.serviceName}>Dusting</Text>
-            <Text style={styles.serviceDescription}>{getSelectedRoomsText()}</Text>
+            <Text style={styles.serviceName}>Kitchen Size</Text>
+            <Text style={styles.serviceDescription}>{getKitchenSizeText()}</Text>
+          </View>
+        </View>
+
+        {/* Appliances */}
+        <View style={styles.serviceRow}>
+          <View style={styles.serviceIcon}>
+            <Ionicons name="cube-outline" size={24} color="#0F1A14" />
+          </View>
+          <View style={styles.serviceDetails}>
+            <Text style={styles.serviceName}>Appliances</Text>
+            <Text style={styles.serviceDescription}>{getAppliancesText()}</Text>
+          </View>
+        </View>
+
+        {/* Grease Level */}
+        <View style={styles.serviceRow}>
+          <View style={styles.serviceIcon}>
+            <Ionicons name="flame-outline" size={24} color="#0F1A14" />
+          </View>
+          <View style={styles.serviceDetails}>
+            <Text style={styles.serviceName}>Grease Level</Text>
+            <Text style={styles.serviceDescription}>{getGreaseLevelText()}</Text>
+          </View>
+        </View>
+
+        {/* Material Provider */}
+        <View style={styles.serviceRow}>
+          <View style={styles.serviceIcon}>
+            <Ionicons name="person-outline" size={24} color="#0F1A14" />
+          </View>
+          <View style={styles.serviceDetails}>
+            <Text style={styles.serviceName}>Material Provider</Text>
+            <Text style={styles.serviceDescription}>{getMaterialProviderText()}</Text>
           </View>
         </View>
 
@@ -233,7 +286,11 @@ export default function OrderSummary() {
 
       {/* Bottom Section */}
       <View style={styles.bottomSection}>
-        <TouchableOpacity style={styles.proceedButton} onPress={handleProceedToPayment}>
+        <TouchableOpacity
+          style={[styles.proceedButton, !kitchenServiceId && { opacity: 0.5 }]}
+          onPress={handleProceedToPayment}
+          disabled={!kitchenServiceId}
+        >
           <Text style={styles.proceedButtonText}>Proceed to Payment</Text>
         </TouchableOpacity>
         <Text style={styles.termsText}>
