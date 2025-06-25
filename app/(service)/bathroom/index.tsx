@@ -326,9 +326,10 @@ export default function BathroomService() {
       address: selectedAddress,
       date: selectedDate ? selectedDate.toISOString() : '',
       time: selectedTime,
-      bathroomAreas: Object.keys(selectedBathroomAreas).filter(k => selectedBathroomAreas[k]),
-      severity,
-      needDisinfectant,
+      // Add bathroomSize, stainsLevel, fixtures for confirmation
+      bathroomSize: selectedBathroomAreas['all'] ? 'All' : Object.keys(selectedBathroomAreas).filter(k => selectedBathroomAreas[k]).join(', '),
+      stainsLevel: severity || '',
+      fixtures: needDisinfectant && disinfectantInput ? [disinfectantInput] : [],
       materialProvider,
       notes,
       locationMethod,
@@ -336,9 +337,9 @@ export default function BathroomService() {
       duration_minutes: 45 // default duration for bathroom
     };
 
-    // Navigate to order summary (update route to brooming_confirmation for now)
+    // Navigate to order summary (update route to bathroom_confirmation)
     router.push({
-      pathname: '/(confirmation)/brooming_confirmation',
+      pathname: '/(confirmation)/bathroom_confirmation',
       params: { bookingData: JSON.stringify(bookingData) }
     });
   };
@@ -760,7 +761,7 @@ export default function BathroomService() {
               </TouchableOpacity>
             </View>
           </View>
-          <Text style={[styles.switchLabel, {marginLeft: 2, marginBottom: 8}]}>{needDisinfectant ? 'Yes' : 'No'}</Text>
+
           {needDisinfectant && (
             <View style={{ marginBottom: 16 }}>
               <Pressable
