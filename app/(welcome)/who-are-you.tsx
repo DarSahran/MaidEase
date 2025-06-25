@@ -48,7 +48,7 @@ export default function WhoAreYouScreen() {
   const handleMaidPress = () => {
     // Navigate to maid flow - you can create this route later
     console.log('Maid selected');
-    // router.push('/(maid)/dashboard'); // Example for future
+    router.push('/(maid_auth)/offeringsupport'); // Example for future
   };
 
   const handleUserPress = () => {
