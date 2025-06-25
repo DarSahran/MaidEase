@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Updates from 'expo-updates';
+import React, { useCallback, useEffect, useState } from 'react';
+import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
+import CustomRefreshAnimation from '../../components/CustomRefreshAnimation';
 import BookingCard from '../../components/dashboard/BookingCard';
 import HomeSnapshot from '../../components/dashboard/HomeSnapshot';
 import QuickActions from '../../components/dashboard/QuickActions';
 import SearchBar from '../../components/dashboard/SearchBar';
 import ServiceCard from '../../components/dashboard/ServiceCard';
 import { getUser } from '../../utils/session';
-
 
 // Replace the services array with valid Ionicons names
 const services = [
@@ -26,13 +27,40 @@ const services = [
 export default function DashboardScreen() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showCustomRefresh, setShowCustomRefresh] = useState(false);
+
+  const fetchUser = useCallback(async () => {
+    const u = await getUser();
+    setUser(u);
+  }, []);
 
   useEffect(() => {
-    (async () => {
-      const u = await getUser();
-      setUser(u);
-    })();
+    fetchUser();
+  }, [fetchUser]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Updates.reloadAsync(); // This will reload the entire app, like pressing 'r' in terminal
+    } catch (e) {
+      console.warn('App reload failed:', e);
+    }
+    setRefreshing(false);
   }, []);
+
+  // Keyboard 'r' to refresh (dev/terminal, web only)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'r' || e.key === 'R') {
+          handleRefresh();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [handleRefresh]);
 
   const handleServicePress = (serviceId: string) => {
     router.push({ pathname: '../(service)/[serviceId]', params: { serviceId } });
@@ -41,7 +69,18 @@ export default function DashboardScreen() {
   return (
     <SafeAreaViewContext style={{ flex: 1, backgroundColor: '#F7FCF7' }}>
       <SafeAreaView style={styles.container}>
-        <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Custom Refresh Animation Overlay */}
+        {showCustomRefresh && (
+          <View style={styles.refreshOverlay}>
+            <CustomRefreshAnimation />
+          </View>
+        )}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#1AE51A"]} />
+          }
+        >
           {/* Header */}
           <View style={styles.headerWrapper}>
             <View style={styles.headerCenteredRow}>
@@ -185,5 +224,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Lexend',
     fontWeight: '700',
     lineHeight: 21,
+  },
+  refreshOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
 });
