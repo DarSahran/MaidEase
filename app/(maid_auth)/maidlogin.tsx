@@ -1,59 +1,70 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import FacebookSignInButton from '../../components/FacebookSignInButton';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { supabase } from '../../constants/supabase';
-import { saveUser } from '../../utils/session';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [saving, setSaving] = useState(false);
   const [loginError, setLoginError] = useState('');
   const router = useRouter();
 
   const handleLogin = async () => {
-    if (!email) {
-      setEmailError('Email is required');
+    if (!phone) {
+      setPhoneError('Phone number is required');
       return;
-    } else if (!email.includes('@')) {
-      setEmailError('Enter a valid email address');
+    } else if (!/^\d{10}$/.test(phone)) {
+      setPhoneError('Enter a valid 10-digit phone number');
       return;
     } else {
-      setEmailError('');
+      setPhoneError('');
     }
+
     setSaving(true);
     setLoginError('');
-    // Check if user exists
-    const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone', phone)
+      .single();
+
     setSaving(false);
-    if (error && error.code === 'PGRST116') { // Not found
-      // Redirect to signup with prefilled email
-      router.push({ pathname: '/(maid_auth)/maidsignup', params: { email } });
+
+    if (error && error.code === 'PGRST116') {
+      // User not found, redirect to signup
+      router.push({ pathname: '/(maid_auth)/maidsignup', params: { phone } });
       return;
     }
+
     if (error) {
       setLoginError('Error: ' + error.message);
       return;
     }
-    if (data && data.password === password) {
-      setLoginError('');
-      // Save user session
-      await saveUser(data);
-      console.log('user verified and logging in');
-      router.replace('../(main)');
-      // router.push('/(main)/dashboard');
-    } else {
-      setLoginError('Incorrect password.');
-      console.log('Incorrect password.');
+
+    if (data) {
+      // Redirect to OTP verification
+      router.push({ pathname: '/(maid_auth)/otp-verification1', params: { phone } });
     }
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity
@@ -69,40 +80,38 @@ export default function LoginScreen() {
 
         <Text style={styles.welcome}>Welcome back</Text>
 
-        {/* Email Input */}
+        {/* Phone Number Input */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#638770"
-            value={email}
-            onChangeText={text => { setEmail(text); setEmailError(''); }}
-            autoCapitalize="none"
-            keyboardType="email-address"
+            placeholder="Phone Number"
+            placeholderTextColor="#8A8A8A"
+            value={phone}
+            onChangeText={(text) => {
+              setPhone(text);
+              setPhoneError('');
+            }}
+            keyboardType="phone-pad"
+            maxLength={10}
           />
-          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+          {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
         </View>
 
-        {/* Password Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#638770"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
-
-        <TouchableOpacity>
+        {/* <TouchableOpacity>
           <Text style={styles.forgot}>Forgot password?</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Login Button */}
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={saving}>
-          <Text style={styles.loginButtonText}>{saving ? 'Logging in...' : 'Log in'}</Text>
+        <TouchableOpacity
+          style={styles.loginButton}
+          onPress={handleLogin}
+          disabled={saving}
+        >
+          <Text style={styles.loginButtonText}>
+            {saving ? 'Logging in...' : 'Log in'}
+          </Text>
         </TouchableOpacity>
+
         {loginError ? <Text style={styles.errorText}>{loginError}</Text> : null}
 
         <Text style={styles.or}>Or</Text>
@@ -111,6 +120,7 @@ export default function LoginScreen() {
         <GoogleSignInButton />
         <FacebookSignInButton />
       </ScrollView>
+
       {/* Signup Link at the bottom */}
       <View style={styles.signupBottomContainer}>
         <Text style={styles.signupText}>
@@ -158,27 +168,71 @@ const styles = StyleSheet.create({
   },
   headerTitleBold: {
     fontWeight: 'bold',
-    fontSize: 32, // Increased font size for MaidEasy
+    fontSize: 32,
     color: '#121714',
   },
   welcome: {
-    fontSize: 22, // Smaller font size for Welcome back
-    fontWeight: 'bold', // Make it bold
+    fontSize: 22,
+    fontWeight: 'bold',
     color: '#121714',
     marginBottom: 20,
-    textAlign: 'left', // Align left
+    textAlign: 'left',
     marginTop: 4,
-    marginLeft: 4, // Add a little left margin for spacing
+    marginLeft: 4,
   },
   inputContainer: { marginBottom: 12 },
-  input: { height: 56, backgroundColor: '#F0F5F2', borderRadius: 12, paddingHorizontal: 16, fontSize: 16, color: '#222' },
-  forgot: { color: '#638770', fontSize: 14, marginBottom: 12, textAlign: 'right' },
-  loginButton: { backgroundColor: '#38E078', borderRadius: 24, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  loginButtonText: { color: '#121714', fontSize: 16, fontWeight: '700' },
-  or: { textAlign: 'center', color: '#638770', fontSize: 14, marginVertical: 12 },
-  socialButton: { backgroundColor: '#F0F5F2', borderRadius: 20, height: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  socialButtonText: { color: '#121714', fontSize: 14, fontWeight: '700' },
-  signupText: { color: '#638770', fontSize: 14, textAlign: 'center', marginTop: 16 },
+  input: {
+    height: 56,
+    backgroundColor: '#F0F5F2',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#222',
+  },
+  forgot: {
+    color: '#638770',
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'right',
+  },
+  loginButton: {
+    backgroundColor: '#38E078',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loginButtonText: {
+    color: '#121714',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  or: {
+    textAlign: 'center',
+    color: '#638770',
+    fontSize: 14,
+    marginVertical: 12,
+  },
+  socialButton: {
+    backgroundColor: '#F0F5F2',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  socialButtonText: {
+    color: '#121714',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  signupText: {
+    color: '#638770',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 16,
+  },
   signupLink: {
     color: '#38E078',
     fontWeight: 'bold',
@@ -198,3 +252,5 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 });
+
+
