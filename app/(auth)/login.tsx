@@ -1,3 +1,4 @@
+import * as Device from 'expo-device';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -64,10 +65,18 @@ export default function LoginScreen() {
             const result = geoData.results[0].components;
             userCity = result.city || result.town || result.village || result.county || result.state || result.country || '';
           }
-          await supabase.from('users').update({ last_login: new Date().toISOString(), last_login_city: userCity }).eq('id', data.id);
+          // Get device info
+          const deviceInfo = {
+            brand: Device.brand || '',
+            modelName: Device.modelName || '',
+            osName: Device.osName || '',
+            osVersion: Device.osVersion || '',
+          };
+          const deviceInfoString = JSON.stringify(deviceInfo);
+          await supabase.from('users').update({ last_login: new Date().toISOString(), last_login_city: userCity, last_login_device: deviceInfoString }).eq('id', data.id);
         } catch (e) {
           // Silently fail, do not block user
-          console.log('Background location update error:', e);
+          console.log('Background location/device update error:', e);
         }
       })();
       // router.push('/(main)/dashboard');

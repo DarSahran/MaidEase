@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as Device from 'expo-device';
 import { supabase } from '../../constants/supabase';
 import { getUser } from '../../utils/session';
 
@@ -34,10 +35,14 @@ export default function UserProfile() {
   const [newAddrCity, setNewAddrCity] = useState('');
   const [newAddrState, setNewAddrState] = useState('');
   const [newAddrPincode, setNewAddrPincode] = useState('');
+  const [deviceInfo, setDeviceInfo] = useState<string>('');
 
   useEffect(() => {
     async function fetchProfile() {
       setLoading(true);
+      // Get device info
+      const info = `${Device.brand || ''} ${Device.modelName || ''} (${Device.osName || ''} ${Device.osVersion || ''})`;
+      setDeviceInfo(info);
       const localUser = await getUser();
       if (!localUser || !localUser.id) {
         setLoading(false);
@@ -562,6 +567,7 @@ export default function UserProfile() {
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Last Login</Text></View>
       <View style={[styles.card, { marginBottom: 10 }]}> 
         <Text style={{ color: '#0D1A12', fontWeight: '600' }}>Last Login: {lastLogin}</Text>
+        <Text style={{ color: '#737373', fontSize: 12 }}>Device: {deviceInfo || 'Unknown'}</Text>
       </View>
 
       {/* Feedback Widget */}
