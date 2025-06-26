@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import ProgressBar from '../../components/settings/ProgressBar';
 import { supabase } from '../../constants/supabase';
 import { getUser } from '../../utils/session';
 
@@ -66,6 +65,51 @@ export default function UserProfile() {
         .from('booking_history')
         .select('*')
         .eq('user_id', localUser.id);
+      // Loyalty logic (sync with loyalty-details.tsx)
+      let tier = '';
+      let nextTier = undefined;
+      let badge = null;
+      let toNext = 0;
+      let tierMin = 0;
+      let tierDisplayMax = 0;
+      let bookingsInTier = 0;
+      let bookingsCount = bookingData ? bookingData.length : 0;
+      if (bookingsCount < 5) {
+        tier = 'No Tier';
+        nextTier = 'Bronze';
+        badge = null;
+        toNext = 5 - bookingsCount;
+        tierMin = 0;
+        tierDisplayMax = 4;
+        bookingsInTier = bookingsCount;
+      } else if (bookingsCount < 20) {
+        tier = 'Bronze';
+        nextTier = 'Silver';
+        badge = require('../../assets/card-logos/bronze_badge.png');
+        toNext = 20 - bookingsCount;
+        tierMin = 5;
+        tierDisplayMax = 19;
+        bookingsInTier = bookingsCount - tierMin + 1;
+      } else if (bookingsCount < 40) {
+        tier = 'Silver';
+        nextTier = 'Gold';
+        badge = require('../../assets/card-logos/silver_badge.png');
+        toNext = 40 - bookingsCount;
+        tierMin = 20;
+        tierDisplayMax = 39;
+        bookingsInTier = bookingsCount - tierMin + 1;
+      } else {
+        tier = 'Gold';
+        nextTier = undefined;
+        badge = require('../../assets/card-logos/gold_badge.png');
+        toNext = 0;
+        tierMin = 40;
+        tierDisplayMax = 40;
+        bookingsInTier = bookingsCount - tierMin + 1;
+        if (bookingsInTier < 1) bookingsInTier = 1;
+      }
+      if (bookingsInTier < 0) bookingsInTier = 0;
+      if (bookingsCount > tierDisplayMax) bookingsInTier = tierDisplayMax - tierMin + 1;
       // Recommendations: find most booked service
       let recs: any[] = [];
       if (bookingData && bookingData.length > 0) {
@@ -91,7 +135,7 @@ export default function UserProfile() {
           recs = [{ id: 1, service: serviceName, reason: `You book this service most often (${sorted[0][1]} times)` }];
         }
       }
-      setLoyalty({ tier: 'Silver', pointsToNext: 35, progress: 0.7 });
+      setLoyalty({ tier, nextTier, badge, toNext, tierMin, tierDisplayMax, bookingsInTier, bookingsCount });
       setUser(userData);
       setAddresses(addrData || []);
       setBookings(bookingData || []);
@@ -465,15 +509,29 @@ export default function UserProfile() {
 
       {/* Loyalty Summary */}
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Loyalty Summary</Text></View>
-      <TouchableOpacity style={[styles.card, styles.loyaltyButton]} activeOpacity={0.9}>
+      <TouchableOpacity style={[styles.card, styles.loyaltyButton]} activeOpacity={0.9} onPress={() => router.push('/(settings)/loyalty-details')}>
         <View style={styles.loyaltyRow}>
-          <View style={styles.loyaltyIconBox}><Ionicons name="star" size={24} color="#088729" /></View>
+          <View style={styles.loyaltyIconBox}>
+            <Ionicons name="star" size={24} color="#088729" />
+          </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.loyaltyTier}>{loyalty.tier}</Text>
-            <Text style={styles.loyaltyPoints}>{loyalty.pointsToNext} more points to reach Gold</Text>
-            <ProgressBar bookingsCount={Math.round(loyalty.progress * 10)} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+              <Text style={styles.loyaltyTier}>{loyalty.tier === 'No Tier' ? 'No Loyalty Tier Yet' : `${loyalty.tier} Member`}</Text>
+              {loyalty.badge && (
+                <Image source={loyalty.badge} style={{ width: 24, height: 24, marginLeft: 8, resizeMode: 'contain' }} />
+              )}
+            </View>
+            {loyalty.nextTier ? (
+              <Text style={styles.loyaltyPoints}>
+                {loyalty.toNext} more booking{loyalty.toNext === 1 ? '' : 's'} to reach {loyalty.nextTier}
+              </Text>
+            ) : (
+              <Text style={styles.loyaltyPoints}>You are at the highest tier!</Text>
+            )}
+            <Text style={styles.bookingsDone}>{loyalty.bookingsInTier}/{loyalty.tierDisplayMax - loyalty.tierMin + 1} bookings in this tier</Text>
           </View>
         </View>
+        <Text style={{ color: '#52946B', fontSize: 13, fontWeight: '600', textAlign: 'right', marginTop: 4 }}>Click here to check details</Text>
       </TouchableOpacity>
 
       {/* Referral to Friend */}
@@ -705,6 +763,13 @@ const styles = StyleSheet.create({
     color: '#0D1A12',
     lineHeight: 24,
     marginBottom: 4,
+  },
+  bookingsDone: {
+    fontSize: 14,
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: '400',
+    color: '#737373',
+    lineHeight: 20,
   },
   card: {
     backgroundColor: '#fff',

@@ -1,3 +1,5 @@
+// This file has been moved to components/ProgressBar.tsx. Please update your imports accordingly.
+
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -5,40 +7,85 @@ interface ProgressBarProps {
   bookingsCount: number; // Number of bookings completed by the user
 }
 
+// Loyalty tiers as per app description
 const stages = [
-  { name: 'Bronze', min: 0, max: 4, color: '#B08D57', discount: '0%' },
-  { name: 'Silver', min: 5, max: 9, color: '#C0C0C0', discount: '5%' },
-  { name: 'Gold', min: 10, max: 19, color: '#FFD700', discount: '10%' },
-  { name: 'Platinum', min: 20, max: Infinity, color: '#E5E4E2', discount: '15%' },
+  { name: 'Bronze', min: 5, max: 19, color: '#B08D57', perks: 'Access to standard maids, Email support' },
+  { name: 'Silver', min: 20, max: 39, color: '#C0C0C0', perks: 'Faster maid matching, 5% loyalty discount, Dedicated support' },
+  { name: 'Gold', min: 40, max: Infinity, color: '#FFD700', perks: 'Priority maid selection, 10% discount, Early access to promos, Loyalty concierge' },
 ];
 
 function getStage(bookingsCount: number) {
-  return stages.find(stage => bookingsCount >= stage.min && bookingsCount <= stage.max) || stages[0];
+  // If less than 5 bookings, not eligible for any tier
+  if (bookingsCount < 5) return { name: 'None', color: '#DBDBDB', perks: 'No perks yet', min: 0, max: 4 };
+  return stages.find(stage => bookingsCount >= stage.min && bookingsCount <= stage.max) || stages[stages.length - 1];
 }
 
 function getNextStage(bookingsCount: number) {
+  if (bookingsCount < 5) return stages[0];
   const currentIndex = stages.findIndex(stage => bookingsCount >= stage.min && bookingsCount <= stage.max);
   return stages[currentIndex + 1] || stages[stages.length - 1];
 }
 
 export default function ProgressBar({ bookingsCount }: ProgressBarProps) {
-  const currentStage = getStage(bookingsCount);
-  const nextStage = getNextStage(bookingsCount);
-  const stageProgress = Math.min(
-    (bookingsCount - currentStage.min) / ((currentStage.max === Infinity ? bookingsCount + 1 : currentStage.max + 1) - currentStage.min),
-    1
-  );
+  // --- Use the same logic as loyalty-details.tsx ---
+  let currentTier = '';
+  let nextTier: string | undefined = undefined;
+  let tierMin = 0;
+  let tierDisplayMax = 0;
+  let bookingsInTier = 0;
+  let toNext = 0;
+  let progress = 0;
+
+  if (bookingsCount < 5) {
+    currentTier = 'No Tier';
+    nextTier = 'Bronze';
+    tierMin = 0;
+    tierDisplayMax = 4;
+    bookingsInTier = bookingsCount;
+    toNext = 5 - bookingsCount;
+    progress = bookingsCount / 5;
+  } else if (bookingsCount < 20) {
+    currentTier = 'Bronze';
+    nextTier = 'Silver';
+    tierMin = 5;
+    tierDisplayMax = 19;
+    bookingsInTier = bookingsCount - tierMin + 1;
+    toNext = 20 - bookingsCount;
+    progress = (bookingsCount - tierMin + 1) / (tierDisplayMax - tierMin + 1);
+  } else if (bookingsCount < 40) {
+    currentTier = 'Silver';
+    nextTier = 'Gold';
+    tierMin = 20;
+    tierDisplayMax = 39;
+    bookingsInTier = bookingsCount - tierMin + 1;
+    toNext = 40 - bookingsCount;
+    progress = (bookingsCount - tierMin + 1) / (tierDisplayMax - tierMin + 1);
+  } else {
+    currentTier = 'Gold';
+    nextTier = undefined;
+    tierMin = 40;
+    tierDisplayMax = 40;
+    bookingsInTier = bookingsCount - tierMin + 1;
+    if (bookingsInTier < 1) bookingsInTier = 1;
+    toNext = 0;
+    progress = 1;
+  }
+  if (bookingsInTier < 0) bookingsInTier = 0;
+  if (bookingsCount > tierDisplayMax) bookingsInTier = tierDisplayMax - tierMin + 1;
+  progress = Math.max(0, Math.min(progress, 1));
 
   return (
     <View style={styles.wrapper}>
       <View style={styles.stagesRow}>
-        <Text style={[styles.stageLabel, { color: currentStage.color }]}>{currentStage.name}</Text>
-        <Text style={styles.nextStageLabel}>Next: {nextStage.name}</Text>
+        <Text style={styles.stageLabel}>{currentTier === 'No Tier' ? 'No Loyalty Tier Yet' : `${currentTier}`}</Text>
+        {nextTier ? (
+          <Text style={styles.nextStageLabel}>Next: {nextTier}</Text>
+        ) : null}
       </View>
       <View style={styles.container}>
-        <View style={[styles.progress, { width: `${stageProgress * 100}%`, backgroundColor: currentStage.color }]} />
+        <View style={[styles.progress, { width: `${progress * 100}%`, backgroundColor: currentTier === 'Bronze' ? '#B08D57' : currentTier === 'Silver' ? '#C0C0C0' : currentTier === 'Gold' ? '#FFD700' : '#DBDBDB' }]} />
       </View>
-      <Text style={styles.discountLabel}>Discount: {currentStage.discount} on bookings</Text>
+      <Text style={styles.discountLabel}>{bookingsInTier}/{tierDisplayMax - tierMin + 1} bookings in this tier</Text>
     </View>
   );
 }

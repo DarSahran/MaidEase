@@ -1,5 +1,4 @@
 import AccountHeader from '@/components/settings/AccountHeader';
-import ProgressBar from '@/components/settings/ProgressBar';
 import SettingItem from '@/components/settings/SettingItem';
 import ToggleItem from '@/components/settings/ToggleItem';
 import { Ionicons } from '@expo/vector-icons';
@@ -161,13 +160,6 @@ export default function SettingsScreen() {
             subtitle="Apply promo codes to your bookings"
             onPress={() => { }}
           />
-
-          {/* Loyalty Tier */}
-          <View style={styles.loyaltySection}>
-            <Text style={styles.loyaltyTitle}>Loyalty Tier</Text>
-            <ProgressBar bookingsCount={6} />
-            <Text style={styles.loyaltyLevel}>Silver</Text>
-          </View>
         </View>
 
         {/* Your Preferences */}
@@ -265,24 +257,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 12,
-  },
-  loyaltySection: {
-    padding: 16,
-    gap: 12,
-  },
-  loyaltyTitle: {
-    fontSize: 16,
-    fontFamily: 'Plus Jakarta Sans',
-    fontWeight: '500',
-    color: '#141414',
-    lineHeight: 24,
-  },
-  loyaltyLevel: {
-    fontSize: 14,
-    fontFamily: 'Plus Jakarta Sans',
-    fontWeight: '400',
-    color: '#737373',
-    lineHeight: 21,
   },
   preferencesSection: {
     padding: 16,
