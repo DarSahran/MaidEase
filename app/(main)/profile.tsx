@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Device from 'expo-device';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import * as Device from 'expo-device';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../constants/supabase';
 import { getUser } from '../../utils/session';
 
@@ -16,6 +17,10 @@ export default function UserProfile() {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [lastLogin, setLastLogin] = useState<string>('');
   const [feedback, setFeedback] = useState<number>(0);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [previousFeedback, setPreviousFeedback] = useState<any>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
@@ -145,7 +150,29 @@ export default function UserProfile() {
       setBookings(bookingData || []);
       setRecommendations(recs);
       // Set last login string with city if available
-      setLastLogin(userData?.last_login ? `${new Date(userData.last_login).toLocaleString()}${userData.last_login_city ? ' (' + userData.last_login_city + ')' : ''}` : 'N/A');
+      if (userData?.last_login) {
+        const dateObj = new Date(userData.last_login);
+        const day = dateObj.getDate();
+        const month = dateObj.toLocaleString('default', { month: 'short' });
+        const formatted = `${day}-${month}`;
+        setLastLogin(`${formatted}${userData.last_login_city ? ' (' + userData.last_login_city + ')' : ''}`);
+      } else {
+        setLastLogin('N/A');
+      }
+      // Fetch previous feedback
+      if (localUser && localUser.id) {
+        const { data: feedbackData } = await supabase
+          .from('user_feedback')
+          .select('id, rating, comment')
+          .eq('user_id', localUser.id)
+          .single();
+        if (feedbackData) {
+          setPreviousFeedback(feedbackData);
+          setFeedback(feedbackData.rating);
+          setFeedbackComment(feedbackData.comment || '');
+          setFeedbackSubmitted(true);
+        }
+      }
       setLoading(false);
     }
     fetchProfile();
@@ -161,9 +188,9 @@ export default function UserProfile() {
   const handleShare = async () => {
     try {
       const referralName = encodeURIComponent(`${user?.first_name || ''}${user?.last_name ? '-' + user.last_name : ''}`.replace(/\s+/g, ''));
-      const referralLink = `https://maideasy.com/signup?ref=${referralName}`;
+      const referralLink = `https://maidease.com/signup?ref=${referralName}`;
       await Share.share({
-        message: `Join MaidEasy and get ₹100 wallet credit! Use my referral link: ${referralLink}`
+        message: `Join MaidEase and get ₹100 wallet credit! Use my referral link: ${referralLink}`
       });
     } catch (error) {}
   };
@@ -283,309 +310,364 @@ export default function UserProfile() {
     }
   };
 
+  const handleSubmitFeedback = async () => {
+    if (!feedback) {
+      Alert.alert('Please select a rating.');
+      return;
+    }
+    setFeedbackLoading(true);
+    const localUser = await getUser();
+    if (!localUser || !localUser.id) {
+      setFeedbackLoading(false);
+      Alert.alert('User not found.');
+      return;
+    }
+    // Upsert feedback (insert or update)
+    const { error } = await supabase
+      .from('user_feedback')
+      .upsert({ user_id: localUser.id, rating: feedback, comment: feedbackComment }, { onConflict: 'user_id' });
+    setFeedbackLoading(false);
+    if (error) {
+      Alert.alert('Failed to submit feedback', error.message);
+    } else {
+      setFeedbackSubmitted(true);
+      setPreviousFeedback({ rating: feedback, comment: feedbackComment });
+      Alert.alert('Thank you for your feedback!');
+    }
+  };
+
   return (
-    <ScrollView style={{ backgroundColor: '#F7FAFA' }} contentContainerStyle={{ flexGrow: 1, padding: 0 }}>
-      {/* User Info */}
-      <View style={[styles.profileHeaderCard]}> 
-        <View style={styles.avatarSection}>
-          <Image source={avatarSource} style={styles.avatar} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F7FAFA' }}>
+      <ScrollView style={{ backgroundColor: '#F7FAFA' }} contentContainerStyle={{ flexGrow: 1, padding: 0 }}>
+        {/* App Name Centered at Top */}
+        <View style={{ alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#0D1A12', letterSpacing: 1 }}>MaidEase</Text>
         </View>
-        <TouchableOpacity style={styles.editButton} onPress={openEditModal}>
-          <Ionicons name="create-outline" size={20} color="#52946B" />
-          <Text style={styles.editButtonText}>Edit Profile</Text>
-        </TouchableOpacity>
-        <Text style={[styles.userName, { marginTop: 6 }]}>{user?.first_name || 'N/A'} {user?.last_name || ''}</Text>
-        <Text style={styles.emailText}>{user?.email || 'N/A'}</Text>
-        <Text style={styles.userPhone}>{user?.mobile || 'N/A'}</Text>
-        <View style={styles.divider} />
-      </View>
-      {/* Edit Profile Modal */}
-      <Modal visible={editModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setEditModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#52946B" />
-            </TouchableOpacity>
-            <View style={{ alignItems: 'center', marginBottom: 12 }}>
-              <Image source={avatarSource} style={[styles.avatar, { width: 80, height: 80, borderRadius: 40, borderWidth: 2, marginBottom: 0 }]} />
-            </View>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <Text style={styles.inputLabel}>First Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="First Name"
-              value={editFirstName}
-              onChangeText={setEditFirstName}
-            />
-            <Text style={styles.inputLabel}>Last Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Last Name"
-              value={editLastName}
-              onChangeText={setEditLastName}
-            />
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={editEmail}
-              onChangeText={setEditEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 }}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setEditModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Edit Address Modal */}
-      <Modal visible={editAddressModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setEditAddressModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#52946B" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Edit Address</Text>
-            <Text style={styles.inputLabel}>Label</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Label (e.g. Home, Work)"
-              value={editAddrLabel}
-              onChangeText={setEditAddrLabel}
-            />
-            <Text style={styles.inputLabel}>House Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="House Number"
-              value={editAddrHouse}
-              onChangeText={setEditAddrHouse}
-            />
-            <Text style={styles.inputLabel}>Street</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Street"
-              value={editAddrStreet}
-              onChangeText={setEditAddrStreet}
-            />
-            <Text style={styles.inputLabel}>City</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="City"
-              value={editAddrCity}
-              onChangeText={setEditAddrCity}
-            />
-            <Text style={styles.inputLabel}>State</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="State"
-              value={editAddrState}
-              onChangeText={setEditAddrState}
-            />
-            <Text style={styles.inputLabel}>Pincode</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Pincode"
-              value={editAddrPincode}
-              onChangeText={setEditAddrPincode}
-              keyboardType="numeric"
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 }}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setEditAddressModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveAddress}>
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Add Address Modal */}
-      <Modal visible={addAddressModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setAddAddressModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#52946B" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Add New Address</Text>
-            <Text style={styles.inputLabel}>Label</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Label (e.g. Home, Work)"
-              value={newAddrLabel}
-              onChangeText={setNewAddrLabel}
-            />
-            <Text style={styles.inputLabel}>House Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="House Number"
-              value={newAddrHouse}
-              onChangeText={setNewAddrHouse}
-            />
-            <Text style={styles.inputLabel}>Street</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Street"
-              value={newAddrStreet}
-              onChangeText={setNewAddrStreet}
-            />
-            <Text style={styles.inputLabel}>City</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="City"
-              value={newAddrCity}
-              onChangeText={setNewAddrCity}
-            />
-            <Text style={styles.inputLabel}>State</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="State"
-              value={newAddrState}
-              onChangeText={setNewAddrState}
-            />
-            <Text style={styles.inputLabel}>Pincode</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Pincode"
-              value={newAddrPincode}
-              onChangeText={setNewAddrPincode}
-              keyboardType="numeric"
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 }}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setAddAddressModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleAddAddress}>
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Recommendations */}
-      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Recommended for You</Text></View>
-      <View style={styles.card}>
-        {recommendations.length === 0 && <Text style={{ textAlign: 'center', color: '#737373' }}>No recommendations yet.</Text>}
-        {recommendations.map((rec) => (
-          <View key={rec.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingVertical: 8 }}>
-            <Ionicons name="sparkles-outline" size={24} color="#52946B" style={{ marginRight: 12 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 17, color: '#0D1A12' }}>{rec.service}</Text>
-              <Text style={{ color: '#737373', fontSize: 13, marginTop: 2 }}>Most booked service</Text>
-            </View>
-            <View style={styles.badge}><Text style={styles.badgeText}>{rec.reason.match(/\d+/)?.[0] || ''}x</Text></View>
-          </View>
-        ))}
-      </View>
-
-      {/* Address Book */}
-      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Address Book</Text></View>
-      <View style={styles.card}>
-        {addresses.length === 0 && (
-          <Text style={{ textAlign: 'center', color: '#737373', marginBottom: 8 }}>No addresses saved.</Text>
-        )}
-        {addresses.map((addr, idx) => (
-          <View key={addr.id || idx} style={styles.addressRow}>
-            <View style={styles.addressIconBox}>
-              <Ionicons name={idx === 0 ? 'home-outline' : 'business-outline'} size={24} color="#0D1A12" />
-            </View>
-            <View style={styles.addressInfo}>
-              <Text style={styles.addressLabel}>{addr.label}</Text>
-              <Text style={styles.addressText}>{`${addr.house_number}, ${addr.street}, ${addr.city}, ${addr.state} - ${addr.pincode}`}</Text>
-            </View>
-            <TouchableOpacity onPress={() => openEditAddressModal(addr)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="create-outline" size={20} color="#52946B" />
-              <Text style={styles.editButtonText}>Edit</Text>
-              <Text accessibilityElementsHidden accessibilityLabel="Edit Address" style={{ position: 'absolute', left: -9999, width: 1, height: 1 }}>Edit Address</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-        <TouchableOpacity style={[styles.addAddressButton, { marginTop: 8 }]} onPress={openAddAddressModal}> 
-          <Text style={styles.addAddressText}>+ Add New Address</Text> 
-        </TouchableOpacity>
-      </View>
-
-      {/* Loyalty Summary */}
-      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Loyalty Summary</Text></View>
-      <TouchableOpacity style={[styles.card, styles.loyaltyButton]} activeOpacity={0.9} onPress={() => router.push('/(settings)/loyalty-details')}>
-        <View style={styles.loyaltyRow}>
-          <View style={styles.loyaltyIconBox}>
-            <Ionicons name="star" size={24} color="#088729" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-              <Text style={styles.loyaltyTier}>{loyalty.tier === 'No Tier' ? 'No Loyalty Tier Yet' : `${loyalty.tier} Member`}</Text>
-              {loyalty.badge && (
-                <Image source={loyalty.badge} style={{ width: 24, height: 24, marginLeft: 8, resizeMode: 'contain' }} />
-              )}
-            </View>
-            {loyalty.nextTier ? (
-              <Text style={styles.loyaltyPoints}>
-                {loyalty.toNext} more booking{loyalty.toNext === 1 ? '' : 's'} to reach {loyalty.nextTier}
-              </Text>
-            ) : (
-              <Text style={styles.loyaltyPoints}>You are at the highest tier!</Text>
-            )}
-            <Text style={styles.bookingsDone}>{loyalty.bookingsInTier}/{loyalty.tierDisplayMax - loyalty.tierMin + 1} bookings in this tier</Text>
-          </View>
-        </View>
-        <Text style={{ color: '#52946B', fontSize: 13, fontWeight: '600', textAlign: 'right', marginTop: 4 }}>Click here to check details</Text>
-      </TouchableOpacity>
-
-      {/* Referral to Friend */}
-      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Refer a Friend</Text></View>
-      <View style={[styles.card, { alignItems: 'center', marginBottom: 16, paddingTop: 24, paddingBottom: 24 }]}> 
-        <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#0D1A12', marginBottom: 8, textAlign: 'center' }}>
-          Invite your friends and earn rewards!
-        </Text>
-        <Text style={{ color: '#737373', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
-          Share your referral link below. You and your friend both get ₹100 wallet credit when they complete their first booking!
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F7FAFA', borderRadius: 8, borderWidth: 1, borderColor: '#D4E3D9', paddingHorizontal: 10, paddingVertical: 8, marginBottom: 12, width: '100%' }}>
-          <Text style={{ flex: 1, color: '#0D1A12', fontSize: 13 }} numberOfLines={1} ellipsizeMode="middle">
-            {`https://maideasy.com/signup?ref=${encodeURIComponent(`${user?.first_name || ''}${user?.last_name ? '-' + user.last_name : ''}`.replace(/\s+/g, ''))}`}
-          </Text>
-          <TouchableOpacity onPress={() => {navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(`https://maideasy.com/signup?ref=${encodeURIComponent(`${user?.first_name || ''}${user?.last_name ? '-' + user.lastName : ''}`.replace(/\s+/g, ''))}`) : Alert.alert('Copied!')}} style={{ marginLeft: 8, padding: 4 }}>
-            <Ionicons name="copy-outline" size={20} color="#52946B" />
+        <View style={{ position: 'relative' }}>
+          {/* Edit Profile Button */}
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 20, right: 20, zIndex: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F2ED', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, margin: 8 }}
+            onPress={openEditModal}
+          >
+            <Ionicons name="create-outline" size={20} color="#52946B" />
+            <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
+
+          {/* User Info */}
+          <View style={[styles.profileHeaderCard]}> 
+            <View style={styles.avatarSection}>
+              <Image source={avatarSource} style={styles.avatar} />
+            </View>
+            <Text style={[styles.userName, { marginTop: 6 }]}>{user?.first_name || 'N/A'} {user?.last_name || ''}</Text>
+            <Text style={styles.emailText}>{user?.email || 'N/A'}</Text>
+            <Text style={styles.userPhone}>{user?.mobile || 'N/A'}</Text>
+            <View style={styles.divider} />
+          </View>
         </View>
-        <TouchableOpacity style={{ backgroundColor: '#38E078', borderRadius: 8, padding: 10, alignItems: 'center', width: '100%' }} onPress={handleShare}>
-          <Text style={{ color: '#0D1A12', fontWeight: '700', fontSize: 15 }}>Share Referral Link</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Last Login */}
-      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Last Login</Text></View>
-      <View style={[styles.card, { marginBottom: 10 }]}> 
-        <Text style={{ color: '#0D1A12', fontWeight: '600' }}>Last Login: {lastLogin}</Text>
-        <Text style={{ color: '#737373', fontSize: 12 }}>Device: {deviceInfo || 'Unknown'}</Text>
-      </View>
+        {/* Edit Profile Modal */}
+        <Modal visible={editModalVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setEditModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#52946B" />
+              </TouchableOpacity>
+              <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                <Image source={avatarSource} style={[styles.avatar, { width: 80, height: 80, borderRadius: 40, borderWidth: 2, marginBottom: 0 }]} />
+              </View>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <Text style={styles.inputLabel}>First Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="First Name"
+                value={editFirstName}
+                onChangeText={setEditFirstName}
+              />
+              <Text style={styles.inputLabel}>Last Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Last Name"
+                value={editLastName}
+                onChangeText={setEditLastName}
+              />
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                value={editEmail}
+                onChangeText={setEditEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 }}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setEditModalVisible(false)}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
-      {/* Feedback Widget */}
-      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Feedback</Text></View>
-      <View style={[styles.card, { marginBottom: 10 }]}> 
-        <Text style={{ color: '#0D1A12', fontWeight: '600', marginBottom: 4 }}>Rate your experience</Text>
-        <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <TouchableOpacity key={star} onPress={() => setFeedback(star)}>
-              <Ionicons name="star" size={24} color={feedback >= star ? "#FFD700" : "#C0C0C0"} style={{ marginRight: 4 }} />
-            </TouchableOpacity>
+        {/* Edit Address Modal */}
+        <Modal visible={editAddressModalVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setEditAddressModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#52946B" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Edit Address</Text>
+              <Text style={styles.inputLabel}>Label</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Label (e.g. Home, Work)"
+                value={editAddrLabel}
+                onChangeText={setEditAddrLabel}
+              />
+              <Text style={styles.inputLabel}>House Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="House Number"
+                value={editAddrHouse}
+                onChangeText={setEditAddrHouse}
+              />
+              <Text style={styles.inputLabel}>Street</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Street"
+                value={editAddrStreet}
+                onChangeText={setEditAddrStreet}
+              />
+              <Text style={styles.inputLabel}>City</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="City"
+                value={editAddrCity}
+                onChangeText={setEditAddrCity}
+              />
+              <Text style={styles.inputLabel}>State</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="State"
+                value={editAddrState}
+                onChangeText={setEditAddrState}
+              />
+              <Text style={styles.inputLabel}>Pincode</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Pincode"
+                value={editAddrPincode}
+                onChangeText={setEditAddrPincode}
+                keyboardType="numeric"
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 }}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setEditAddressModalVisible(false)}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveButton} onPress={handleSaveAddress}>
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Add Address Modal */}
+        <Modal visible={addAddressModalVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setAddAddressModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#52946B" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Add New Address</Text>
+              <Text style={styles.inputLabel}>Label</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Label (e.g. Home, Work)"
+                value={newAddrLabel}
+                onChangeText={setNewAddrLabel}
+              />
+              <Text style={styles.inputLabel}>House Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="House Number"
+                value={newAddrHouse}
+                onChangeText={setNewAddrHouse}
+              />
+              <Text style={styles.inputLabel}>Street</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Street"
+                value={newAddrStreet}
+                onChangeText={setNewAddrStreet}
+              />
+              <Text style={styles.inputLabel}>City</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="City"
+                value={newAddrCity}
+                onChangeText={setNewAddrCity}
+              />
+              <Text style={styles.inputLabel}>State</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="State"
+                value={newAddrState}
+                onChangeText={setNewAddrState}
+              />
+              <Text style={styles.inputLabel}>Pincode</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Pincode"
+                value={newAddrPincode}
+                onChangeText={setNewAddrPincode}
+                keyboardType="numeric"
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 }}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setAddAddressModalVisible(false)}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveButton} onPress={handleAddAddress}>
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Recommendations */}
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Recommended for You</Text></View>
+        <View style={styles.card}>
+          {recommendations.length === 0 && <Text style={{ textAlign: 'center', color: '#737373' }}>No recommendations yet.</Text>}
+          {recommendations.map((rec) => (
+            <View key={rec.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingVertical: 8 }}>
+              <Ionicons name="sparkles-outline" size={24} color="#52946B" style={{ marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 17, color: '#0D1A12' }}>{rec.service}</Text>
+                <Text style={{ color: '#737373', fontSize: 13, marginTop: 2 }}>Most booked service</Text>
+              </View>
+              <View style={styles.badge}><Text style={styles.badgeText}>{rec.reason.match(/\d+/)?.[0] || ''}x</Text></View>
+            </View>
           ))}
         </View>
-        <TouchableOpacity style={{ backgroundColor: '#38E078', borderRadius: 8, padding: 8, alignItems: 'center' }} onPress={() => alert('Thank you for your feedback!')}>
-          <Text style={{ color: '#0D1A12', fontWeight: '700' }}>Submit Feedback</Text>
+
+        {/* Address Book */}
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Address Book</Text></View>
+        <View style={styles.card}>
+          {addresses.length === 0 && (
+            <Text style={{ textAlign: 'center', color: '#737373', marginBottom: 8 }}>No addresses saved.</Text>
+          )}
+          {addresses.map((addr, idx) => (
+            <View key={addr.id || idx} style={styles.addressRow}>
+              <View style={styles.addressIconBox}>
+                <Ionicons name={idx === 0 ? 'home-outline' : 'business-outline'} size={24} color="#0D1A12" />
+              </View>
+              <View style={styles.addressInfo}>
+                <Text style={styles.addressLabel}>{addr.label}</Text>
+                <Text style={styles.addressText}>{`${addr.house_number}, ${addr.street}, ${addr.city}, ${addr.state} - ${addr.pincode}`}</Text>
+              </View>
+              <TouchableOpacity onPress={() => openEditAddressModal(addr)} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="create-outline" size={20} color="#52946B" />
+                <Text style={styles.editButtonText}>Edit</Text>
+                <Text accessibilityElementsHidden accessibilityLabel="Edit Address" style={{ position: 'absolute', left: -9999, width: 1, height: 1 }}>Edit Address</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity style={[styles.addAddressButton, { marginTop: 8 }]} onPress={openAddAddressModal}> 
+            <Text style={styles.addAddressText}>+ Add New Address</Text> 
+          </TouchableOpacity>
+        </View>
+
+        {/* Loyalty Summary */}
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Loyalty Summary</Text></View>
+        <TouchableOpacity style={[styles.card, styles.loyaltyButton]} activeOpacity={0.9} onPress={() => router.push('/(settings)/loyalty-details')}>
+          <View style={styles.loyaltyRow}>
+            <View style={styles.loyaltyIconBox}>
+              <Ionicons name="star" size={24} color="#088729" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                <Text style={styles.loyaltyTier}>{loyalty.tier === 'No Tier' ? 'No Loyalty Tier Yet' : `${loyalty.tier} Member`}</Text>
+                {loyalty.badge && (
+                  <Image source={loyalty.badge} style={{ width: 24, height: 24, marginLeft: 8, resizeMode: 'contain' }} />
+                )}
+              </View>
+              {loyalty.nextTier ? (
+                <Text style={styles.loyaltyPoints}>
+                  {loyalty.toNext} more booking{loyalty.toNext === 1 ? '' : 's'} to reach {loyalty.nextTier}
+                </Text>
+              ) : (
+                <Text style={styles.loyaltyPoints}>You are at the highest tier!</Text>
+              )}
+              <Text style={styles.bookingsDone}>{loyalty.bookingsInTier}/{loyalty.tierDisplayMax - loyalty.tierMin + 1} bookings in this tier</Text>
+            </View>
+          </View>
+          <Text style={{ color: '#52946B', fontSize: 13, fontWeight: '600', textAlign: 'right', marginTop: 4 }}>Click here to check details</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+
+        {/* Referral to Friend */}
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Refer a Friend</Text></View>
+        <View style={[styles.card, { alignItems: 'center', marginBottom: 16, paddingTop: 24, paddingBottom: 24 }]}> 
+          <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#0D1A12', marginBottom: 8, textAlign: 'center' }}>
+            Invite your friends and earn rewards!
+          </Text>
+          <Text style={{ color: '#737373', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
+            Share your referral link below. You and your friend both get ₹100 wallet credit when they complete their first booking!
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F7FAFA', borderRadius: 8, borderWidth: 1, borderColor: '#D4E3D9', paddingHorizontal: 10, paddingVertical: 8, marginBottom: 12, width: '100%' }}>
+            <Text style={{ flex: 1, color: '#0D1A12', fontSize: 13 }} numberOfLines={1} ellipsizeMode="middle">
+              {`https://maidease.com/signup?ref=${encodeURIComponent(`${user?.first_name || ''}${user?.last_name ? '-' + user.last_name : ''}`.replace(/\s+/g, ''))}`}
+            </Text>
+            <TouchableOpacity onPress={() => {navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(`https://maidease.com/signup?ref=${encodeURIComponent(`${user?.first_name || ''}${user?.last_name ? '-' + user.lastName : ''}`.replace(/\s+/g, ''))}`) : Alert.alert('Copied!')}} style={{ marginLeft: 8, padding: 4 }}>
+              <Ionicons name="copy-outline" size={20} color="#52946B" />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={{ backgroundColor: '#38E078', borderRadius: 8, padding: 10, alignItems: 'center', width: '100%' }} onPress={handleShare}>
+            <Text style={{ color: '#0D1A12', fontWeight: '700', fontSize: 15 }}>Share Referral Link</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Last Login */}
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Last Login</Text></View>
+        <View style={[styles.card, { marginBottom: 10 }]}> 
+          <Text style={{ color: '#0D1A12', fontWeight: '600' }}>Last Login: {lastLogin}</Text>
+          <Text style={{ color: '#737373', fontSize: 12 }}>Device: {deviceInfo || 'Unknown'}</Text>
+        </View>
+
+        {/* Feedback Widget */}
+        {!feedbackSubmitted && !previousFeedback && (
+          <>
+            <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Feedback</Text></View>
+            <View style={[styles.card, { marginBottom: 10 }]}> 
+              <Text style={{ color: '#0D1A12', fontWeight: '600', marginBottom: 4 }}>Rate your experience</Text>
+              <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity key={star} onPress={() => setFeedback(star)}>
+                    <Ionicons name="star" size={24} color={feedback >= star ? "#FFD700" : "#C0C0C0"} style={{ marginRight: 4 }} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput
+                style={[styles.input, { minHeight: 40, marginBottom: 8 }]}
+                placeholder="Add a comment (optional)"
+                value={feedbackComment}
+                onChangeText={setFeedbackComment}
+                multiline
+              />
+              <TouchableOpacity
+                style={{ backgroundColor: feedbackLoading ? '#E8F2ED' : '#38E078', borderRadius: 8, padding: 8, alignItems: 'center', opacity: feedbackLoading ? 0.6 : 1 }}
+                onPress={handleSubmitFeedback}
+                disabled={feedbackLoading}
+              >
+                <Text style={{ color: '#0D1A12', fontWeight: '700' }}>{feedbackLoading ? 'Submitting...' : 'Submit Feedback'}</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
