@@ -46,7 +46,7 @@ export default function UserProfile() {
       // Fetch user profile from Supabase
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('id, first_name, last_name, email, mobile')
+        .select('id, first_name, last_name, email, mobile, last_login, last_login_city')
         .eq('id', localUser.id)
         .single();
       if (userError) {
@@ -139,7 +139,8 @@ export default function UserProfile() {
       setAddresses(addrData || []);
       setBookings(bookingData || []);
       setRecommendations(recs);
-      setLastLogin('N/A');
+      // Set last login string with city if available
+      setLastLogin(userData?.last_login ? `${new Date(userData.last_login).toLocaleString()}${userData.last_login_city ? ' (' + userData.last_login_city + ')' : ''}` : 'N/A');
       setLoading(false);
     }
     fetchProfile();
@@ -561,7 +562,6 @@ export default function UserProfile() {
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Last Login</Text></View>
       <View style={[styles.card, { marginBottom: 10 }]}> 
         <Text style={{ color: '#0D1A12', fontWeight: '600' }}>Last Login: {lastLogin}</Text>
-        <Text style={{ color: '#737373', fontSize: 12 }}>Device: iPhone 15 Pro (simulated)</Text>
       </View>
 
       {/* Feedback Widget */}

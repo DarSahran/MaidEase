@@ -1,3 +1,4 @@
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -12,6 +13,7 @@ export default function LoginScreen() {
   const [emailError, setEmailError] = useState('');
   const [saving, setSaving] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [locationPermissionError, setLocationPermissionError] = useState('');
   const router = useRouter();
 
   const handleLogin = async () => {
@@ -40,10 +42,34 @@ export default function LoginScreen() {
     }
     if (data && data.password === password) {
       setLoginError('');
-      // Save user session
       await saveUser(data);
-      console.log('user verified and logging in');
+      // Immediately navigate to main page
       router.replace('../(main)');
+      // In the background, get user's city and update Supabase
+      (async () => {
+        try {
+          const OPENCAGE_API_KEY = process.env.EXPO_PUBLIC_OPENCAGE_API_KEY || process.env.NEXT_PUBLIC_OPENCAGE_API_KEY;
+          if (!OPENCAGE_API_KEY) return;
+          let { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') return;
+          let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
+          if (!location || !location.coords || !location.coords.latitude || !location.coords.longitude) return;
+          const { latitude, longitude } = location.coords;
+          const response = await fetch(
+            `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${OPENCAGE_API_KEY}`
+          );
+          const geoData = await response.json();
+          let userCity = '';
+          if (geoData.results && geoData.results[0]) {
+            const result = geoData.results[0].components;
+            userCity = result.city || result.town || result.village || result.county || result.state || result.country || '';
+          }
+          await supabase.from('users').update({ last_login: new Date().toISOString(), last_login_city: userCity }).eq('id', data.id);
+        } catch (e) {
+          // Silently fail, do not block user
+          console.log('Background location update error:', e);
+        }
+      })();
       // router.push('/(main)/dashboard');
     } else {
       setLoginError('Incorrect password.');
