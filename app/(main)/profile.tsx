@@ -21,6 +21,21 @@ export default function UserProfile() {
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editAddressModalVisible, setEditAddressModalVisible] = useState(false);
+  const [editAddress, setEditAddress] = useState<any>(null);
+  const [editAddrLabel, setEditAddrLabel] = useState('');
+  const [editAddrHouse, setEditAddrHouse] = useState('');
+  const [editAddrStreet, setEditAddrStreet] = useState('');
+  const [editAddrCity, setEditAddrCity] = useState('');
+  const [editAddrState, setEditAddrState] = useState('');
+  const [editAddrPincode, setEditAddrPincode] = useState('');
+  const [addAddressModalVisible, setAddAddressModalVisible] = useState(false);
+  const [newAddrLabel, setNewAddrLabel] = useState('');
+  const [newAddrHouse, setNewAddrHouse] = useState('');
+  const [newAddrStreet, setNewAddrStreet] = useState('');
+  const [newAddrCity, setNewAddrCity] = useState('');
+  const [newAddrState, setNewAddrState] = useState('');
+  const [newAddrPincode, setNewAddrPincode] = useState('');
 
   useEffect(() => {
     async function fetchProfile() {
@@ -127,6 +142,96 @@ export default function UserProfile() {
     }
   };
 
+  // Open address edit modal
+  const openEditAddressModal = (addr: any) => {
+    setEditAddress(addr);
+    setEditAddrLabel(addr.label || '');
+    setEditAddrHouse(addr.house_number || '');
+    setEditAddrStreet(addr.street || '');
+    setEditAddrCity(addr.city || '');
+    setEditAddrState(addr.state || '');
+    setEditAddrPincode(addr.pincode || '');
+    setEditAddressModalVisible(true);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!editAddress) return;
+    if (!editAddrLabel.trim() || !editAddrHouse.trim() || !editAddrStreet.trim() || !editAddrCity.trim() || !editAddrState.trim() || !editAddrPincode.trim()) {
+      Alert.alert('All address fields are required.');
+      return;
+    }
+    const { error } = await supabase
+      .from('user_addresses')
+      .update({
+        label: editAddrLabel,
+        house_number: editAddrHouse,
+        street: editAddrStreet,
+        city: editAddrCity,
+        state: editAddrState,
+        pincode: editAddrPincode,
+      })
+      .eq('id', editAddress.id);
+    if (error) {
+      Alert.alert('Failed to update address', error.message);
+    } else {
+      setAddresses(addresses.map(a => a.id === editAddress.id ? {
+        ...a,
+        label: editAddrLabel,
+        house_number: editAddrHouse,
+        street: editAddrStreet,
+        city: editAddrCity,
+        state: editAddrState,
+        pincode: editAddrPincode,
+      } : a));
+      setEditAddressModalVisible(false);
+      setEditAddress(null);
+      Alert.alert('Address updated successfully!');
+    }
+  };
+
+  const openAddAddressModal = () => {
+    setNewAddrLabel('');
+    setNewAddrHouse('');
+    setNewAddrStreet('');
+    setNewAddrCity('');
+    setNewAddrState('');
+    setNewAddrPincode('');
+    setAddAddressModalVisible(true);
+  };
+
+  const handleAddAddress = async () => {
+    if (!newAddrLabel.trim() || !newAddrHouse.trim() || !newAddrStreet.trim() || !newAddrCity.trim() || !newAddrState.trim() || !newAddrPincode.trim()) {
+      Alert.alert('All address fields are required.');
+      return;
+    }
+    // Prevent duplicate labels
+    if (addresses.some(a => a.label.toLowerCase() === newAddrLabel.trim().toLowerCase())) {
+      Alert.alert('This label already exists. Please use a unique label.');
+      return;
+    }
+    const localUser = await getUser();
+    const { data, error } = await supabase
+      .from('user_addresses')
+      .insert({
+        user_id: localUser.id,
+        label: newAddrLabel,
+        house_number: newAddrHouse,
+        street: newAddrStreet,
+        city: newAddrCity,
+        state: newAddrState,
+        pincode: newAddrPincode,
+      })
+      .select()
+      .single();
+    if (error) {
+      Alert.alert('Failed to add address', error.message);
+    } else {
+      setAddresses([...addresses, data]);
+      setAddAddressModalVisible(false);
+      Alert.alert('Address added successfully!');
+    }
+  };
+
   return (
     <ScrollView style={{ backgroundColor: '#F7FAFA' }} contentContainerStyle={{ flexGrow: 1, padding: 0 }}>
       {/* User Info */}
@@ -136,7 +241,7 @@ export default function UserProfile() {
         </View>
         <TouchableOpacity style={styles.editButton} onPress={openEditModal}>
           <Ionicons name="create-outline" size={20} color="#52946B" />
-          <Text style={styles.editButtonText}>Edit</Text>
+          <Text style={styles.editButtonText}>Edit Profile</Text>
         </TouchableOpacity>
         <Text style={[styles.userName, { marginTop: 6 }]}>{user?.first_name || 'N/A'} {user?.last_name || ''}</Text>
         <Text style={styles.emailText}>{user?.email || 'N/A'}</Text>
@@ -147,19 +252,28 @@ export default function UserProfile() {
       <Modal visible={editModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => setEditModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#52946B" />
+            </TouchableOpacity>
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              <Image source={avatarSource} style={[styles.avatar, { width: 80, height: 80, borderRadius: 40, borderWidth: 2, marginBottom: 0 }]} />
+            </View>
             <Text style={styles.modalTitle}>Edit Profile</Text>
+            <Text style={styles.inputLabel}>First Name</Text>
             <TextInput
               style={styles.input}
               placeholder="First Name"
               value={editFirstName}
               onChangeText={setEditFirstName}
             />
+            <Text style={styles.inputLabel}>Last Name</Text>
             <TextInput
               style={styles.input}
               placeholder="Last Name"
               value={editLastName}
               onChangeText={setEditLastName}
             />
+            <Text style={styles.inputLabel}>Email</Text>
             <TextInput
               style={styles.input}
               placeholder="Email"
@@ -173,6 +287,132 @@ export default function UserProfile() {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Address Modal */}
+      <Modal visible={editAddressModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => setEditAddressModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#52946B" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Address</Text>
+            <Text style={styles.inputLabel}>Label</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Label (e.g. Home, Work)"
+              value={editAddrLabel}
+              onChangeText={setEditAddrLabel}
+            />
+            <Text style={styles.inputLabel}>House Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="House Number"
+              value={editAddrHouse}
+              onChangeText={setEditAddrHouse}
+            />
+            <Text style={styles.inputLabel}>Street</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Street"
+              value={editAddrStreet}
+              onChangeText={setEditAddrStreet}
+            />
+            <Text style={styles.inputLabel}>City</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="City"
+              value={editAddrCity}
+              onChangeText={setEditAddrCity}
+            />
+            <Text style={styles.inputLabel}>State</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="State"
+              value={editAddrState}
+              onChangeText={setEditAddrState}
+            />
+            <Text style={styles.inputLabel}>Pincode</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Pincode"
+              value={editAddrPincode}
+              onChangeText={setEditAddrPincode}
+              keyboardType="numeric"
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 }}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setEditAddressModalVisible(false)}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveButton} onPress={handleSaveAddress}>
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Address Modal */}
+      <Modal visible={addAddressModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => setAddAddressModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#52946B" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Add New Address</Text>
+            <Text style={styles.inputLabel}>Label</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Label (e.g. Home, Work)"
+              value={newAddrLabel}
+              onChangeText={setNewAddrLabel}
+            />
+            <Text style={styles.inputLabel}>House Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="House Number"
+              value={newAddrHouse}
+              onChangeText={setNewAddrHouse}
+            />
+            <Text style={styles.inputLabel}>Street</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Street"
+              value={newAddrStreet}
+              onChangeText={setNewAddrStreet}
+            />
+            <Text style={styles.inputLabel}>City</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="City"
+              value={newAddrCity}
+              onChangeText={setNewAddrCity}
+            />
+            <Text style={styles.inputLabel}>State</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="State"
+              value={newAddrState}
+              onChangeText={setNewAddrState}
+            />
+            <Text style={styles.inputLabel}>Pincode</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Pincode"
+              value={newAddrPincode}
+              onChangeText={setNewAddrPincode}
+              keyboardType="numeric"
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 }}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setAddAddressModalVisible(false)}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveButton} onPress={handleAddAddress}>
                 <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -211,14 +451,14 @@ export default function UserProfile() {
               <Text style={styles.addressLabel}>{addr.label}</Text>
               <Text style={styles.addressText}>{`${addr.house_number}, ${addr.street}, ${addr.city}, ${addr.state} - ${addr.pincode}`}</Text>
             </View>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => openEditAddressModal(addr)} style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="create-outline" size={20} color="#52946B" />
-              {/* Hidden accessibility label for screen readers only */}
+              <Text style={styles.editButtonText}>Edit</Text>
               <Text accessibilityElementsHidden accessibilityLabel="Edit Address" style={{ position: 'absolute', left: -9999, width: 1, height: 1 }}>Edit Address</Text>
             </TouchableOpacity>
           </View>
         ))}
-        <TouchableOpacity style={[styles.addAddressButton, { marginTop: 8 }]}> 
+        <TouchableOpacity style={[styles.addAddressButton, { marginTop: 8 }]} onPress={openAddAddressModal}> 
           <Text style={styles.addAddressText}>+ Add New Address</Text> 
         </TouchableOpacity>
       </View>
@@ -544,6 +784,23 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#D4E3D9',
+  },
+  inputLabel: {
+    fontSize: 15,
+    color: '#52946B',
+    fontWeight: '700',
+    marginBottom: 4,
+    marginTop: 8,
+    marginLeft: 2,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    backgroundColor: '#E8F2ED',
+    borderRadius: 16,
+    padding: 4,
   },
   cancelButton: {
     backgroundColor: '#E8F2ED',

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../constants/supabase';
 
 export default function SignupScreen() {
   const [form, setForm] = useState({
@@ -61,11 +62,44 @@ export default function SignupScreen() {
     setEmailError('');
     setSaving(true);
     setSaveError('');
-    // Do NOT save to Supabase yet, go to OTP page with all details
+    // 1. Create user in users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .insert({
+        first_name: form.firstName,
+        last_name: form.lastName,
+        email: form.email,
+        mobile: form.mobile,
+        // ...other fields if needed
+      })
+      .select()
+      .single();
+    if (userError) {
+      setSaveError(userError.message);
+      setSaving(false);
+      return;
+    }
+    // 2. Insert address in user_addresses table with label 'Home'
+    const { error: addrError } = await supabase
+      .from('user_addresses')
+      .insert({
+        user_id: userData.id,
+        label: 'Home',
+        house_number: form.apartment,
+        street: form.street,
+        city: form.city,
+        state: form.state,
+        pincode: form.pincode,
+      });
+    if (addrError) {
+      setSaveError('User created, but failed to save address: ' + addrError.message);
+      setSaving(false);
+      return;
+    }
     setSaving(false);
     router.push({
       pathname: '/(auth)/otp-verification',
-      params: { ...form }
+      params: { ...form, userId: userData.id }
     });
   };
 
