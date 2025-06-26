@@ -91,7 +91,7 @@ export default function SignupScreen() {
           </TouchableOpacity>
           */}
           <Text style={styles.headerTitle}>
-            <Text style={styles.headerTitleBold}>MaidEasy</Text>
+            <Text style={styles.headerTitleBold}>MaidEase</Text>
           </Text>
         </View>
 
