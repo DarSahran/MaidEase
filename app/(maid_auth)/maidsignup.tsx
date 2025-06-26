@@ -2,7 +2,6 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Dimensions,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -12,8 +11,6 @@ import {
   View,
 } from 'react-native';
 
-const { width: screenWidth } = Dimensions.get('window');
-
 export default function RegisterScreen() {
   const router = useRouter();
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -21,16 +18,48 @@ export default function RegisterScreen() {
 
   const [fullName, setFullName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [experience, setExperience] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showMismatch, setShowMismatch] = useState(false);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+
+  const availableSkills = [
+    'Cleaning',
+    'Kitchen',
+    'Bathroom',
+    'Laundry',
+    'Utensils',
+    'Babysitting',
+  ];
+
+  const toggleSkill = (skill: string) => {
+    if (selectedSkills.includes(skill)) {
+      setSelectedSkills(selectedSkills.filter((s) => s !== skill));
+    } else {
+      setSelectedSkills([...selectedSkills, skill]);
+    }
+  };
 
   const handleCreateAccount = () => {
-    if (!fullName || !mobileNumber || !password || !confirmPassword) {
+    if (
+      !fullName ||
+      !mobileNumber ||
+      !experience ||
+      !password ||
+      !confirmPassword ||
+      selectedSkills.length === 0
+    ) {
+      alert('Please fill in all fields and select at least one skill');
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (!/^\d{10}$/.test(mobileNumber)) {
+      alert('Please enter a valid 10-digit mobile number');
+      return;
+    }
+
+    if (password.trim() !== confirmPassword.trim()) {
       setShowMismatch(true);
       return;
     }
@@ -41,16 +70,15 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>MaidEase</Text>
-      </View>
       <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.headerTitle}>MaidEase</Text>
+
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Full Name</Text>
           <TextInput
             style={styles.input}
             placeholder="Full Name"
-            placeholderTextColor="#698273"
+            placeholderTextColor="#8A8A8A"
             value={fullName}
             onChangeText={setFullName}
           />
@@ -61,11 +89,57 @@ export default function RegisterScreen() {
           <TextInput
             style={styles.input}
             placeholder="Mobile Number"
-            placeholderTextColor="#698273"
+            placeholderTextColor="#8A8A8A"
             keyboardType="phone-pad"
+            maxLength={10}
             value={mobileNumber}
-            onChangeText={setMobileNumber}
+            onChangeText={(text) => {
+              const digitsOnly = text.replace(/[^0-9]/g, '');
+              setMobileNumber(digitsOnly);
+            }}
           />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Years of Experience</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 3"
+            placeholderTextColor="#8A8A8A"
+            keyboardType="numeric"
+            value={experience}
+            onChangeText={setExperience}
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Skills</Text>
+          <View style={styles.skillsContainer}>
+            {availableSkills.map((skill) => (
+              <TouchableOpacity
+                key={skill}
+                style={[
+                  styles.skillItem,
+                  selectedSkills.includes(skill) && styles.skillItemSelected,
+                ]}
+                onPress={() => toggleSkill(skill)}
+              >
+                <Text
+                  style={[
+                    styles.skillText,
+                    selectedSkills.includes(skill) && styles.skillTextSelected,
+                  ]}
+                >
+                  {skill}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {selectedSkills.length > 0 && (
+            <Text style={styles.selectedSkillsText}>
+              Selected: {selectedSkills.join(', ')}
+            </Text>
+          )}
         </View>
 
         <View style={styles.inputContainer}>
@@ -74,7 +148,7 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               placeholder="Enter your password"
-              placeholderTextColor="#698273"
+              placeholderTextColor="#8A8A8A"
               secureTextEntry={!passwordVisible}
               value={password}
               onChangeText={(text) => {
@@ -86,7 +160,7 @@ export default function RegisterScreen() {
               style={styles.eyeIcon}
               onPress={() => setPasswordVisible(!passwordVisible)}
             >
-              <Feather name={passwordVisible ? 'eye' : 'eye-off'} size={22} color="#698273" />
+              <Feather name={passwordVisible ? 'eye' : 'eye-off'} size={22} color="#8A8A8A" />
             </TouchableOpacity>
           </View>
         </View>
@@ -97,7 +171,7 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               placeholder="Confirm your password"
-              placeholderTextColor="#698273"
+              placeholderTextColor="#8A8A8A"
               secureTextEntry={!confirmPasswordVisible}
               value={confirmPassword}
               onChangeText={(text) => {
@@ -105,7 +179,11 @@ export default function RegisterScreen() {
                 setShowMismatch(false);
               }}
               onBlur={() => {
-                if (password && confirmPassword && password !== confirmPassword) {
+                if (
+                  password &&
+                  confirmPassword &&
+                  password.trim() !== confirmPassword.trim()
+                ) {
                   setShowMismatch(true);
                 }
               }}
@@ -114,7 +192,7 @@ export default function RegisterScreen() {
               style={styles.eyeIcon}
               onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
             >
-              <Feather name={confirmPasswordVisible ? 'eye' : 'eye-off'} size={22} color="#698273" />
+              <Feather name={confirmPasswordVisible ? 'eye' : 'eye-off'} size={22} color="#8A8A8A" />
             </TouchableOpacity>
           </View>
           {showMismatch && (
@@ -129,8 +207,7 @@ export default function RegisterScreen() {
         <View style={styles.loginPrompt}>
           <Text style={styles.loginText}>Already have an account? Login</Text>
         </View>
-
-        <View style={{ height: 20 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -141,43 +218,33 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 16,
     backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-  },
-  header: {
-    width: '100%',
-    marginBottom: 20,
-    alignItems: 'center',
-    paddingTop: 20,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
-    fontFamily: 'Lexend',
-    color: '#121714',
+    color: '#000000',
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   inputContainer: {
-    width: '100%',
-    maxWidth: 480,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    fontFamily: 'Lexend',
-    color: '#121714',
-    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 6,
   },
   input: {
-    height: 56,
-    borderColor: '#DEE3E0',
+    height: 50,
+    borderColor: '#D0D0D0',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 10,
     paddingHorizontal: 15,
-    fontSize: 16,
-    fontFamily: 'Lexend',
-    color: '#121714',
-    backgroundColor: 'white',
-    flex: 1,
+    fontSize: 14,
+    color: '#000',
+    backgroundColor: '#fff',
+    width:'100%'
   },
   passwordWrapper: {
     flexDirection: 'row',
@@ -190,40 +257,63 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   button: {
-    marginTop: 16,
+    marginTop: 20,
     width: '100%',
-    maxWidth: 480,
-    height: 48,
-    backgroundColor: '#38E078',
-    borderRadius: 24,
+    height: 50,
+    backgroundColor: '#000000',
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
   },
   buttonText: {
-    color: '#121714',
+    color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Lexend',
-    lineHeight: 24,
+    fontWeight: '600',
   },
   loginPrompt: {
-    marginTop: 12,
+    marginTop: 14,
     alignItems: 'center',
-    width: '100%',
   },
   loginText: {
     fontSize: 14,
     fontWeight: '400',
-    fontFamily: 'Lexend',
-    color: '#698273',
-    textAlign: 'center',
-    lineHeight: 21,
+    color: '#8A8A8A',
   },
   errorText: {
     color: 'red',
     marginTop: 6,
     fontSize: 13,
-    fontFamily: 'Lexend',
+  },
+  skillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  skillItem: {
+    borderWidth: 1,
+    borderColor: '#8A8A8A',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  skillItemSelected: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  skillText: {
+    color: '#8A8A8A',
+    fontSize: 13,
+  },
+  skillTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  selectedSkillsText: {
+    marginTop: 8,
+    color: '#000000',
+    fontSize: 14,
   },
 });
