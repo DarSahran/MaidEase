@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 import { supabase } from '../../constants/supabase';
 import { getUser } from '../../utils/session';
 
@@ -155,8 +154,10 @@ export default function UserProfile() {
   // Share referral
   const handleShare = async () => {
     try {
+      const referralName = encodeURIComponent(`${user?.first_name || ''}${user?.last_name ? '-' + user.last_name : ''}`.replace(/\s+/g, ''));
+      const referralLink = `https://maideasy.com/signup?ref=${referralName}`;
       await Share.share({
-        message: `Join MaidEasy! Use my referral code: ${user?.id}`
+        message: `Join MaidEasy and get ₹100 wallet credit! Use my referral link: ${referralLink}`
       });
     } catch (error) {}
   };
@@ -536,11 +537,23 @@ export default function UserProfile() {
 
       {/* Referral to Friend */}
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Refer a Friend</Text></View>
-      <View style={[styles.card, { alignItems: 'center', marginBottom: 16 }]}> 
-        <QRCode value={user?.id?.toString() || 'user'} size={120} backgroundColor="white" color="#52946B" />
-        <Text style={{ color: '#737373', fontSize: 12, marginTop: 4 }}>Scan to refer or check-in</Text>
-        <TouchableOpacity style={{ marginTop: 10, backgroundColor: '#38E078', borderRadius: 8, padding: 8, alignItems: 'center' }} onPress={handleShare}>
-          <Text style={{ color: '#0D1A12', fontWeight: '700' }}>Share Referral</Text>
+      <View style={[styles.card, { alignItems: 'center', marginBottom: 16, paddingTop: 24, paddingBottom: 24 }]}> 
+        <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#0D1A12', marginBottom: 8, textAlign: 'center' }}>
+          Invite your friends and earn rewards!
+        </Text>
+        <Text style={{ color: '#737373', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
+          Share your referral link below. You and your friend both get ₹100 wallet credit when they complete their first booking!
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F7FAFA', borderRadius: 8, borderWidth: 1, borderColor: '#D4E3D9', paddingHorizontal: 10, paddingVertical: 8, marginBottom: 12, width: '100%' }}>
+          <Text style={{ flex: 1, color: '#0D1A12', fontSize: 13 }} numberOfLines={1} ellipsizeMode="middle">
+            {`https://maideasy.com/signup?ref=${encodeURIComponent(`${user?.first_name || ''}${user?.last_name ? '-' + user.last_name : ''}`.replace(/\s+/g, ''))}`}
+          </Text>
+          <TouchableOpacity onPress={() => {navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(`https://maideasy.com/signup?ref=${encodeURIComponent(`${user?.first_name || ''}${user?.last_name ? '-' + user.lastName : ''}`.replace(/\s+/g, ''))}`) : Alert.alert('Copied!')}} style={{ marginLeft: 8, padding: 4 }}>
+            <Ionicons name="copy-outline" size={20} color="#52946B" />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={{ backgroundColor: '#38E078', borderRadius: 8, padding: 10, alignItems: 'center', width: '100%' }} onPress={handleShare}>
+          <Text style={{ color: '#0D1A12', fontWeight: '700', fontSize: 15 }}>Share Referral Link</Text>
         </TouchableOpacity>
       </View>
 
