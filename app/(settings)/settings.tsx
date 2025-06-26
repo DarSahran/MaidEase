@@ -27,8 +27,8 @@ export default function SettingsScreen() {
   };
 
   const handleLogout = () => {
-    // Add logout logic here
-    router.replace('/(auth)/login');
+    // Go to logout confirmation page (moved to settings folder)
+    router.push('/(settings)/logout-confirmation');
   };
 
   return (

@@ -63,7 +63,7 @@ export default function LoginScreen() {
             <Text style={styles.backIcon}>{'\u2190'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            <Text style={styles.headerTitleBold}>MaidEasy</Text>
+            <Text style={styles.headerTitleBold}>MaidEase</Text>
           </Text>
         </View>
 

@@ -2,13 +2,14 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -23,84 +24,85 @@ export default function RegisterScreen() {
     }
     
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      {/* Header now outside ScrollView for proper safe area */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>MaidEasy</Text>
+        <Text style={styles.headerTitle}>MaidEase</Text>
       </View>
-
-      {/* Full Name */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Full Name"
-          placeholderTextColor="#698273"
-        />
-      </View>
-
-      {/* Mobile Number */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Mobile Number</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Mobile Number"
-          placeholderTextColor="#698273"
-          keyboardType="phone-pad"
-        />
-      </View>
-
-      {/* Password */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Password</Text>
-        <View style={styles.passwordWrapper}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Full Name */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Full Name</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your password"
+            placeholder="Full Name"
             placeholderTextColor="#698273"
-            secureTextEntry={!passwordVisible}
           />
-          <TouchableOpacity
-            style={styles.eyeIcon}
-            onPress={() => setPasswordVisible(!passwordVisible)}
-          >
-            <Feather name={passwordVisible ? 'eye' : 'eye-off'} size={22} color="#698273" />
-          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Confirm Password */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Confirm Password</Text>
-        <View style={styles.passwordWrapper}>
+        {/* Mobile Number */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Mobile Number</Text>
           <TextInput
             style={styles.input}
-            placeholder="Confirm your password"
+            placeholder="Mobile Number"
             placeholderTextColor="#698273"
-            secureTextEntry={!confirmPasswordVisible}
+            keyboardType="phone-pad"
           />
-          <TouchableOpacity
-            style={styles.eyeIcon}
-            onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
-          >
-            <Feather name={confirmPasswordVisible ? 'eye' : 'eye-off'} size={22} color="#698273" />
-          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Create Account Button */}
-      <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
-        <Text style={styles.buttonText}>Create Account</Text>
-      </TouchableOpacity>
+        {/* Password */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.passwordWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your password"
+              placeholderTextColor="#698273"
+              secureTextEntry={!passwordVisible}
+            />
+            <TouchableOpacity
+              style={styles.eyeIcon}
+              onPress={() => setPasswordVisible(!passwordVisible)}
+            >
+              <Feather name={passwordVisible ? 'eye' : 'eye-off'} size={22} color="#698273" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      {/* Already have an account */}
-      <View style={styles.loginPrompt}>
-        <Text style={styles.loginText}>Already have an account? Login</Text>
-      </View>
+        {/* Confirm Password */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Confirm Password</Text>
+          <View style={styles.passwordWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm your password"
+              placeholderTextColor="#698273"
+              secureTextEntry={!confirmPasswordVisible}
+            />
+            <TouchableOpacity
+              style={styles.eyeIcon}
+              onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
+            >
+              <Feather name={confirmPasswordVisible ? 'eye' : 'eye-off'} size={22} color="#698273" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      {/* Bottom space */}
-      <View style={{ height: 20 }} />
-    </ScrollView>
+        {/* Create Account Button */}
+        <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
+          <Text style={styles.buttonText}>Create Account</Text>
+        </TouchableOpacity>
+
+        {/* Already have an account */}
+        <View style={styles.loginPrompt}>
+          <Text style={styles.loginText}>Already have an account? Login</Text>
+        </View>
+
+        {/* Bottom space */}
+        <View style={{ height: 20 }} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -115,6 +117,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
     alignItems: 'center',
+    paddingTop: 20, // Added padding to avoid being too close to the top
   },
   headerTitle: {
     fontSize: 18,
