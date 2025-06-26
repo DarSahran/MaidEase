@@ -15,32 +15,47 @@ import {
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function RegisterScreen() {
-    const router = useRouter();
-    const [passwordVisible, setPasswordVisible] = useState(false);
-    const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
-    
-    const handleCreateAccount = () => {
-        router.push('/(maid_auth)/verifyingfirstpage');
+  const router = useRouter();
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+
+  const [fullName, setFullName] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showMismatch, setShowMismatch] = useState(false);
+
+  const handleCreateAccount = () => {
+    if (!fullName || !mobileNumber || !password || !confirmPassword) {
+      return;
     }
-    
+
+    if (password !== confirmPassword) {
+      setShowMismatch(true);
+      return;
+    }
+
+    setShowMismatch(false);
+    router.push('/(maid_auth)/verifyingfirstpage');
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-      {/* Header now outside ScrollView for proper safe area */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>MaidEase</Text>
       </View>
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Full Name */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Full Name</Text>
           <TextInput
             style={styles.input}
             placeholder="Full Name"
             placeholderTextColor="#698273"
+            value={fullName}
+            onChangeText={setFullName}
           />
         </View>
 
-        {/* Mobile Number */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Mobile Number</Text>
           <TextInput
@@ -48,10 +63,11 @@ export default function RegisterScreen() {
             placeholder="Mobile Number"
             placeholderTextColor="#698273"
             keyboardType="phone-pad"
+            value={mobileNumber}
+            onChangeText={setMobileNumber}
           />
         </View>
 
-        {/* Password */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Password</Text>
           <View style={styles.passwordWrapper}>
@@ -60,6 +76,11 @@ export default function RegisterScreen() {
               placeholder="Enter your password"
               placeholderTextColor="#698273"
               secureTextEntry={!passwordVisible}
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                setShowMismatch(false);
+              }}
             />
             <TouchableOpacity
               style={styles.eyeIcon}
@@ -70,7 +91,6 @@ export default function RegisterScreen() {
           </View>
         </View>
 
-        {/* Confirm Password */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Confirm Password</Text>
           <View style={styles.passwordWrapper}>
@@ -79,6 +99,16 @@ export default function RegisterScreen() {
               placeholder="Confirm your password"
               placeholderTextColor="#698273"
               secureTextEntry={!confirmPasswordVisible}
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                setShowMismatch(false);
+              }}
+              onBlur={() => {
+                if (password && confirmPassword && password !== confirmPassword) {
+                  setShowMismatch(true);
+                }
+              }}
             />
             <TouchableOpacity
               style={styles.eyeIcon}
@@ -87,19 +117,19 @@ export default function RegisterScreen() {
               <Feather name={confirmPasswordVisible ? 'eye' : 'eye-off'} size={22} color="#698273" />
             </TouchableOpacity>
           </View>
+          {showMismatch && (
+            <Text style={styles.errorText}>Passwords do not match</Text>
+          )}
         </View>
 
-        {/* Create Account Button */}
         <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
           <Text style={styles.buttonText}>Create Account</Text>
         </TouchableOpacity>
 
-        {/* Already have an account */}
         <View style={styles.loginPrompt}>
           <Text style={styles.loginText}>Already have an account? Login</Text>
         </View>
 
-        {/* Bottom space */}
         <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>
@@ -117,7 +147,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
     alignItems: 'center',
-    paddingTop: 20, // Added padding to avoid being too close to the top
+    paddingTop: 20,
   },
   headerTitle: {
     fontSize: 18,
@@ -189,5 +219,11 @@ const styles = StyleSheet.create({
     color: '#698273',
     textAlign: 'center',
     lineHeight: 21,
+  },
+  errorText: {
+    color: 'red',
+    marginTop: 6,
+    fontSize: 13,
+    fontFamily: 'Lexend',
   },
 });
