@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Device from 'expo-device';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -41,6 +42,9 @@ export default function UserProfile() {
   const [newAddrState, setNewAddrState] = useState('');
   const [newAddrPincode, setNewAddrPincode] = useState('');
   const [deviceInfo, setDeviceInfo] = useState<string>('');
+  const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
+  const [localAvatarPath, setLocalAvatarPath] = useState<string | null>(null);
+  const [avatarTimestamp, setAvatarTimestamp] = useState<number>(0);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -56,13 +60,13 @@ export default function UserProfile() {
       // Fetch user profile from Supabase
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('id, first_name, last_name, email, mobile, last_login, last_login_city')
+        .select('id, first_name, last_name, email, mobile, last_login, last_login_city, profile_pic_url')
         .eq('id', localUser.id)
         .single();
       if (userError) {
-        console.log('Supabase user fetch error:', userError); // Debug log
+        // No log for error
       } else {
-        console.log('Successfully fetched details of', userData?.first_name || 'User');
+        console.log('successfully logged in', userData?.first_name || 'User');
       }
       // Fetch addresses
       const { data: addrData } = await supabase
@@ -146,6 +150,7 @@ export default function UserProfile() {
       }
       setLoyalty({ tier, nextTier, badge, toNext, tierMin, tierDisplayMax, bookingsInTier, bookingsCount });
       setUser(userData);
+      console.log('fetched profile successful');
       setAddresses(addrData || []);
       setBookings(bookingData || []);
       setRecommendations(recs);
@@ -178,11 +183,130 @@ export default function UserProfile() {
     fetchProfile();
   }, []);
 
-  if (loading) {
-    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#52946B" /></View>;
-  }
+  // Helper to upload profile image
+  const handleProfileImageUpload = async () => {
+    if (!user?.id) return;
+    try {
+      setUploadingProfilePic(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        base64: true,
+      });
+      if (result.canceled || !result.assets || !result.assets[0]?.base64 || !result.assets[0]?.uri) {
+        Alert.alert('Image picking cancelled');
+        setUploadingProfilePic(false);
+        return;
+      }
+      let ext = 'png';
+      const uri = result.assets[0].uri;
+      const match = uri.match(/\.([a-zA-Z0-9]+)$/);
+      if (match && match[1]) {
+        ext = match[1].toLowerCase();
+        if (ext === 'jpg') ext = 'jpeg';
+      }
+      const base64 = result.assets[0].base64;
+      // Save inside user folder
+      const filename = `${user.id}/profile_${user.id}.${ext}`;
+      function base64ToUint8Array(base64: string) {
+        const binaryString = atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+      }
+      const fileData = base64ToUint8Array(base64);
+      // Remove previous image (optional, since upsert will overwrite)
+      await supabase.storage.from('user-profile-pic').remove([filename]);
+      // Upload new image (upsert)
+      const { error: uploadError } = await supabase.storage
+        .from('user-profile-pic')
+        .upload(filename, fileData, {
+          contentType: `image/${ext}`,
+          upsert: true,
+        });
+      if (uploadError) {
+        Alert.alert('Upload error', uploadError.message);
+        setUploadingProfilePic(false);
+        return;
+      }
+      // Get public URL
+      const { data } = await supabase.storage
+        .from('user-profile-pic')
+        .getPublicUrl(filename);
+      if (!data?.publicUrl) {
+        Alert.alert('Failed to get public URL');
+        setUploadingProfilePic(false);
+        return;
+      }
+      // Save URL to user profile
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ profile_pic_url: data.publicUrl })
+        .eq('id', user.id);
+      if (updateError) {
+        Alert.alert('Failed to save profile image', updateError.message);
+        setUploadingProfilePic(false);
+        return;
+      }
+      setUser({ ...user, profile_pic_url: data.publicUrl });
+      // No downloadProfileImage call needed
+      // No deleteLocalAvatar needed
+      Alert.alert('Profile image updated!');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || String(err));
+    } finally {
+      setUploadingProfilePic(false);
+    }
+  };
 
-  const avatarSource = require('../../assets/images/profile-avatar.png');
+  // Helper to get a signed URL for a private profile image
+  const getProfileImageSignedUrl = async (profilePicUrl: string) => {
+    if (!profilePicUrl) return null;
+    // Extract the bucket path from the public URL
+    // Example: https://<project>.supabase.co/storage/v1/object/public/user-profile-pic/<bucketPath>
+    const match = profilePicUrl.match(/user-profile-pic\/(.*)$/);
+    const bucketPath = match ? match[1] : null;
+    if (!bucketPath) return null;
+    // Use supabase-js client to get a signed URL (valid for 60 seconds)
+    const { data, error } = await supabase.storage.from('user-profile-pic').createSignedUrl(bucketPath, 60);
+    if (error) {
+      console.log('Error getting signed URL:', error.message);
+      return null;
+    }
+    return data.signedUrl;
+  };
+
+  // State for signed avatar URL
+  const [signedAvatarUrl, setSignedAvatarUrl] = useState<string | null>(null);
+
+  // Fetch and cache avatar signed URL on user/profile_pic_url change
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.profile_pic_url && user?.id) {
+      getProfileImageSignedUrl(user.profile_pic_url).then(url => {
+        if (isMounted) setSignedAvatarUrl(url);
+      });
+    } else {
+      setSignedAvatarUrl(null);
+    }
+    return () => { isMounted = false; };
+  }, [user?.profile_pic_url, user?.id]);
+
+  // In the profile header, use the signed URL if available
+  const avatarSource = signedAvatarUrl
+    ? { uri: signedAvatarUrl }
+    : require('../../assets/images/profile-avatar.png');
+
+  // Delete local avatar file (no-op, kept for API compatibility)
+  const deleteLocalAvatar = async () => {
+    setLocalAvatarPath(null);
+  };
+
+  // On logout, delete local avatar
+  // Call deleteLocalAvatar() in your logout logic
 
   // Share referral
   const handleShare = async () => {
@@ -336,6 +460,11 @@ export default function UserProfile() {
     }
   };
 
+  // Move loading check after all hooks
+  if (loading) {
+    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#52946B" /></View>;
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F7FAFA' }}>
       <ScrollView style={{ backgroundColor: '#F7FAFA' }} contentContainerStyle={{ flexGrow: 1, padding: 0 }}>
@@ -356,7 +485,16 @@ export default function UserProfile() {
           {/* User Info */}
           <View style={[styles.profileHeaderCard]}> 
             <View style={styles.avatarSection}>
-              <Image source={avatarSource} style={styles.avatar} />
+              <TouchableOpacity onPress={handleProfileImageUpload} disabled={uploadingProfilePic}>
+                <Image source={avatarSource} style={styles.avatar} onError={() => {
+                  console.log('Remote avatar failed, falling back to default avatar.');
+                  setLocalAvatarPath(null);
+                }} />
+                <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, padding: 2 }}>
+                  <Ionicons name="camera" size={20} color="#52946B" />
+                </View>
+                {uploadingProfilePic && <Text style={{ position: 'absolute', top: 0, left: 0, right: 0, textAlign: 'center', color: '#52946B', fontSize: 12 }}>Uploading...</Text>}
+              </TouchableOpacity>
             </View>
             <Text style={[styles.userName, { marginTop: 6 }]}>{user?.first_name || 'N/A'} {user?.last_name || ''}</Text>
             <Text style={styles.emailText}>{user?.email || 'N/A'}</Text>

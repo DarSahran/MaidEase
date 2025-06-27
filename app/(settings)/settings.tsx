@@ -1,4 +1,3 @@
-import AccountHeader from '@/components/settings/AccountHeader';
 import SettingItem from '@/components/settings/SettingItem';
 import ToggleItem from '@/components/settings/ToggleItem';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../constants/supabase';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -45,9 +45,6 @@ export default function SettingsScreen() {
           <View style={styles.placeholder} />
         </View>
 
-        {/* Account Section */}
-        <AccountHeader />
-
         {/* Bookings & Services */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Bookings & Services</Text>
@@ -66,15 +63,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/(settings)/booking-history')}
           />
 
-          
-
           <SettingItem
             icon="calendar-outline"
             title="Booking Flexibility"
             subtitle="Reschedule or cancel your bookings"
             onPress={() => router.push('/(settings)/booking-flexibility')}
           />
-
         </View>
 
         {/* Notifications & Communication */}

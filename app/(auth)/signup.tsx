@@ -62,28 +62,50 @@ export default function SignupScreen() {
     setEmailError('');
     setSaving(true);
     setSaveError('');
-    // 1. Create user in users table
+    // 1. Create user in Supabase Auth
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+    });
+    if (signUpError) {
+      setSaveError(signUpError.message);
+      setSaving(false);
+      return;
+    }
+    const userId = signUpData?.user?.id;
+    if (!userId) {
+      setSaveError('Failed to get user ID from Supabase Auth.');
+      setSaving(false);
+      return;
+    }
+    // 2. Create user in custom users table
     const { data: userData, error: userError } = await supabase
       .from('users')
       .insert({
+        id: userId, // Use Supabase Auth user id
         first_name: form.firstName,
         last_name: form.lastName,
         email: form.email,
         mobile: form.mobile,
-        // ...other fields if needed
+        apartment: form.apartment,
+        street: form.street,
+        city: form.city,
+        state: form.state,
+        pincode: form.pincode,
+        password: form.password, // (optional: you may want to remove this for security)
       })
       .select()
       .single();
     if (userError) {
-      setSaveError(userError.message);
+      setSaveError('Auth created, but failed to save user profile: ' + userError.message);
       setSaving(false);
       return;
     }
-    // 2. Insert address in user_addresses table with label 'Home'
+    // 3. Insert address in user_addresses table with label 'Home'
     const { error: addrError } = await supabase
       .from('user_addresses')
       .insert({
-        user_id: userData.id,
+        user_id: userId,
         label: 'Home',
         house_number: form.apartment,
         street: form.street,
@@ -99,7 +121,7 @@ export default function SignupScreen() {
     setSaving(false);
     router.push({
       pathname: '/(auth)/otp-verification',
-      params: { ...form, userId: userData.id }
+      params: { ...form, userId }
     });
   };
 
