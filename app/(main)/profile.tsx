@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -194,7 +196,7 @@ export default function UserProfile() {
         base64: true,
       });
       if (result.canceled || !result.assets || !result.assets[0]?.base64 || !result.assets[0]?.uri) {
-        Alert.alert('Image picking cancelled');
+        // Do not show alert if cancelled
         setUploadingProfilePic(false);
         return;
       }
@@ -252,8 +254,10 @@ export default function UserProfile() {
         return;
       }
       setUser({ ...user, profile_pic_url: data.publicUrl });
-      // No downloadProfileImage call needed
-      // No deleteLocalAvatar needed
+      // Clear cached image and url
+      await AsyncStorage.removeItem(`profile_pic_url_${user.id}`);
+      await AsyncStorage.removeItem(`profile_pic_url_time_${user.id}`);
+      setCachedAvatarPath(null);
       Alert.alert('Profile image updated!');
     } catch (err: any) {
       Alert.alert('Error', err.message || String(err));
@@ -279,26 +283,63 @@ export default function UserProfile() {
     return data.signedUrl;
   };
 
+  // Helper to download and cache the profile image
+  const getCachedProfileImage = async (userId: string, profilePicUrl: string) => {
+    if (!userId || !profilePicUrl) return null;
+    const cacheKey = `profile_pic_url_${userId}`;
+    const cacheTimeKey = `profile_pic_url_time_${userId}`;
+    const localPath = `${FileSystem.cacheDirectory}user_${userId}_avatar.jpg`;
+    try {
+      const lastUrl = await AsyncStorage.getItem(cacheKey);
+      if (lastUrl === profilePicUrl && (await FileSystem.getInfoAsync(localPath)).exists) {
+        // Use cached image
+        return localPath;
+      }
+      // Download new image
+      const signedUrl = await getProfileImageSignedUrl(profilePicUrl);
+      if (!signedUrl) return null;
+      const downloadRes = await FileSystem.downloadAsync(signedUrl, localPath);
+      if (downloadRes.status === 200) {
+        await AsyncStorage.setItem(cacheKey, profilePicUrl);
+        await AsyncStorage.setItem(cacheTimeKey, Date.now().toString());
+        return localPath;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
   // State for signed avatar URL
   const [signedAvatarUrl, setSignedAvatarUrl] = useState<string | null>(null);
+  const [cachedAvatarPath, setCachedAvatarPath] = useState<string | null>(null);
 
-  // Fetch and cache avatar signed URL on user/profile_pic_url change
+  // Fetch and cache avatar signed URL and local image on user/profile_pic_url change
   useEffect(() => {
     let isMounted = true;
-    if (user?.profile_pic_url && user?.id) {
-      getProfileImageSignedUrl(user.profile_pic_url).then(url => {
+    async function fetchAvatar() {
+      if (user?.profile_pic_url && user?.id) {
+        // Try to get cached image
+        const localPath = await getCachedProfileImage(user.id, user.profile_pic_url);
+        if (isMounted) setCachedAvatarPath(localPath);
+        // Also set signed URL as fallback
+        const url = await getProfileImageSignedUrl(user.profile_pic_url);
         if (isMounted) setSignedAvatarUrl(url);
-      });
-    } else {
-      setSignedAvatarUrl(null);
+      } else {
+        setCachedAvatarPath(null);
+        setSignedAvatarUrl(null);
+      }
     }
+    fetchAvatar();
     return () => { isMounted = false; };
   }, [user?.profile_pic_url, user?.id]);
 
-  // In the profile header, use the signed URL if available
-  const avatarSource = signedAvatarUrl
-    ? { uri: signedAvatarUrl }
-    : require('../../assets/images/profile-avatar.png');
+  // In the profile header, use the cached image if available, else signed URL, else default
+  const avatarSource = cachedAvatarPath
+    ? { uri: cachedAvatarPath }
+    : signedAvatarUrl
+      ? { uri: signedAvatarUrl }
+      : require('../../assets/images/profile-avatar.png');
 
   // Delete local avatar file (no-op, kept for API compatibility)
   const deleteLocalAvatar = async () => {
