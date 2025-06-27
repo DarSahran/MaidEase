@@ -64,22 +64,11 @@ export default function OTPVerificationScreen() {
     setSuccess(false);
     if (isOtpFilled) {
       if (otp.join('') === '111111') {
-        if (
-          params.fullName &&
-          params.mobileNumber &&
-          params.experience &&
-          params.password &&
-          params.confirmPassword &&
-          params.selectedSkills.length > 0
-        ) {
-          setSuccess(true);
-          setMessage('OTP verified! Navigating...');
-          setTimeout(() => {
-            router.replace('/(maid_auth)/verificationsuccessful');
-          }, 1000);
-        } else {
-          setMessage('Missing required details in params.');
-        }
+        setSuccess(true);
+        setMessage('OTP verified! Navigating...');
+        setTimeout(() => {
+          router.replace('/(maid_auth)/verificationsuccessful');
+        }, 1000);
       } else {
         setMessage('Invalid OTP. Please try again.');
         setOtp(['', '', '', '', '', '']);
