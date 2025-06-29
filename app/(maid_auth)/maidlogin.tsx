@@ -35,16 +35,19 @@ export default function LoginScreen() {
     setLoginError('');
 
     const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('phone', phone)
+      .from('maids')
+      .select('id')
+      .eq('mobile', phone)
       .single();
 
     setSaving(false);
 
     if (error && error.code === 'PGRST116') {
-      // User not found, redirect to signup
-      router.push({ pathname: '/(maid_auth)/maidsignup', params: { phone } });
+      // Maid not found — redirect to signup
+      router.push({
+        pathname: '/(maid_auth)/maidsignup',
+        params: { phone }
+      });
       return;
     }
 
@@ -54,8 +57,11 @@ export default function LoginScreen() {
     }
 
     if (data) {
-      // Redirect to OTP verification
-      router.push({ pathname: '/(maid_auth)/otp-verification1', params: { phone } });
+      // Maid found — redirect to OTP Verification
+      router.push({
+        pathname: '/(maid_auth)/otp-verification1',
+        params: { phone }
+      });
     }
   };
 
@@ -80,7 +86,7 @@ export default function LoginScreen() {
 
         <Text style={styles.welcome}>Welcome back</Text>
 
-        {/* Phone Number Input */}
+        {/* Phone Input */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
@@ -97,10 +103,6 @@ export default function LoginScreen() {
           {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
         </View>
 
-        {/* <TouchableOpacity>
-          <Text style={styles.forgot}>Forgot password?</Text>
-        </TouchableOpacity> */}
-
         {/* Login Button */}
         <TouchableOpacity
           style={styles.loginButton}
@@ -116,12 +118,11 @@ export default function LoginScreen() {
 
         <Text style={styles.or}>Or</Text>
 
-        {/* Social Buttons */}
         <GoogleSignInButton />
         <FacebookSignInButton />
       </ScrollView>
 
-      {/* Signup Link at the bottom */}
+      {/* Signup Link */}
       <View style={styles.signupBottomContainer}>
         <Text style={styles.signupText}>
           Don't have an account?{' '}
@@ -189,12 +190,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#222',
   },
-  forgot: {
-    color: '#638770',
-    fontSize: 14,
-    marginBottom: 12,
-    textAlign: 'right',
-  },
   loginButton: {
     backgroundColor: '#38E078',
     borderRadius: 24,
@@ -213,19 +208,6 @@ const styles = StyleSheet.create({
     color: '#638770',
     fontSize: 14,
     marginVertical: 12,
-  },
-  socialButton: {
-    backgroundColor: '#F0F5F2',
-    borderRadius: 20,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  socialButtonText: {
-    color: '#121714',
-    fontSize: 14,
-    fontWeight: '700',
   },
   signupText: {
     color: '#638770',
@@ -252,5 +234,3 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 });
-
-
