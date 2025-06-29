@@ -89,7 +89,9 @@ const AadharVerificationScreen = () => {
             maxLength={12}
             value={aadharnumber}
             onChangeText={(text) => {
-              setAadharNumber(text);
+              // Remove non-digit characters
+              const numericText = text.replace(/[^0-9]/g, '');
+              setAadharNumber(numericText);
               setError('');
             }}
           />

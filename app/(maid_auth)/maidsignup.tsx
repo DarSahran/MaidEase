@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,11 +11,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { supabase } from '../../constants/supabase';
+
+function getPasswordStrength(password: string): 'Weak' | 'Medium' | 'Strong' {
+  if (!password) return 'Weak';
+  let strength = 0;
+  if (password.length >= 8) strength++;
+  if (/[A-Z]/.test(password)) strength++;
+  if (/[0-9]/.test(password)) strength++;
+  if (/[^A-Za-z0-9]/.test(password)) strength++;
+  if (strength >= 3) return 'Strong';
+  if (strength === 2) return 'Medium';
+  return 'Weak';
+}
 
 export default function RegisterScreen() {
   const router = useRouter();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -23,6 +38,7 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showMismatch, setShowMismatch] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [passwordStrength, setPasswordStrength] = useState<'Weak' | 'Medium' | 'Strong'>('Weak');
 
   const availableSkills = [
     'Cleaning',
@@ -41,7 +57,7 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleCreateAccount = () => {
+  const handleCreateAccount = async () => {
     if (
       !fullName ||
       !mobileNumber ||
@@ -65,7 +81,39 @@ export default function RegisterScreen() {
     }
 
     setShowMismatch(false);
-    router.push('/(maid_auth)/verifyingfirstpage');
+    setLoading(true);
+
+    try {
+      // Adjust payload to match your Supabase table column names and types
+      const payload = {
+        full_name: fullName,
+        mobile: mobileNumber, // changed to match schema
+        experience: parseInt(experience, 10), // ensure integer
+        password: password, // In production, hash the password!
+        skills: selectedSkills, // already an array of strings
+        // other fields like is_available, average_rating, etc. will use defaults
+      };
+      const { data, error } = await supabase.from('maids').insert([payload]).select();
+      console.log('Supabase insert payload:', payload);
+      console.log('Supabase response:', data, error);
+      if (error) {
+        Alert.alert('Registration Error', error.message);
+        setLoading(false);
+        return;
+      }
+      if (!data || data.length === 0) {
+        Alert.alert('Registration Error', 'No data returned from Supabase. Check your table schema and column names.');
+        setLoading(false);
+        return;
+      }
+      Alert.alert('Success', 'Account created successfully!');
+      setLoading(false);
+      router.push('/(maid_auth)/verifyingfirstpage');
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      Alert.alert('Registration Error', 'An unexpected error occurred.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -154,6 +202,7 @@ export default function RegisterScreen() {
               onChangeText={(text) => {
                 setPassword(text);
                 setShowMismatch(false);
+                setPasswordStrength(getPasswordStrength(text));
               }}
             />
             <TouchableOpacity
@@ -163,6 +212,18 @@ export default function RegisterScreen() {
               <Feather name={passwordVisible ? 'eye' : 'eye-off'} size={22} color="#8A8A8A" />
             </TouchableOpacity>
           </View>
+          <Text style={{
+            color:
+              passwordStrength === 'Strong'
+                ? 'green'
+                : passwordStrength === 'Medium'
+                ? 'orange'
+                : 'red',
+            marginTop: 4,
+            fontWeight: 'bold',
+          }}>
+            Password Strength: {passwordStrength}
+          </Text>
         </View>
 
         <View style={styles.inputContainer}>
@@ -200,12 +261,12 @@ export default function RegisterScreen() {
           )}
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
-          <Text style={styles.buttonText}>Create Account</Text>
+        <TouchableOpacity style={styles.button} onPress={handleCreateAccount} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Creating...' : 'Create Account'}</Text>
         </TouchableOpacity>
 
         <View style={styles.loginPrompt}>
-          <Text style={styles.loginText}>Already have an account? Login</Text>
+          <Text style={styles.loginText}>Already have an account? <Text onPress={()=>router.push('/(maid_auth)/maidlogin')} style={styles.loginstyle}>Login</Text></Text>
         </View>
         <View style={{ height: 30 }} />
       </ScrollView>
@@ -316,4 +377,9 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 14,
   },
+  loginstyle: {
+    color: '#38E078',
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
+  }
 });
