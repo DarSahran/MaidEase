@@ -1,6 +1,7 @@
+import { router } from 'expo-router'; // ✅ use this instead of useNavigation
 import React from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather'; // ← Feather icons
+import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
 
 const { width } = Dimensions.get('window');
 const profilePic = require('../../assets/images/maid-demo-pic.png');
@@ -10,11 +11,14 @@ export default function MaidDashboard() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={styles.headerRow}>
           <Text style={styles.headerText}>MaidEasy</Text>
+          <TouchableOpacity>
+            <Icon name="settings" size={24} color="#0D1A12" />
+          </TouchableOpacity>
         </View>
 
-        {/* Greeting Section */}
+        {/* Greeting */}
         <View style={styles.greetingContainer}>
           <View style={styles.avatarContainer}>
             <Image source={profilePic} style={styles.avatar} />
@@ -25,7 +29,6 @@ export default function MaidDashboard() {
           </View>
         </View>
 
-        {/* Dashboard Title */}
         <Text style={styles.dashboardTitle}>Dashboard</Text>
 
         {/* Cards */}
@@ -42,7 +45,11 @@ export default function MaidDashboard() {
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         {navData.map((item, index) => (
-          <View key={index} style={styles.navItem}>
+          <TouchableOpacity
+            key={index}
+            style={styles.navItem}
+            onPress={() => router.push(item.route)} // ✅ router-based navigation
+          >
             <Icon
               name={item.icon}
               size={24}
@@ -52,7 +59,7 @@ export default function MaidDashboard() {
             <Text style={[styles.navLabel, { color: item.active ? '#52946B' : '#0F1A0F' }]}>
               {item.label}
             </Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
     </View>
@@ -68,10 +75,11 @@ const cardData = [
   { image: require('../../assets/images/help.png') },
 ];
 
+// ✅ Updated navData for router-based navigation
 const navData = [
-  { label: 'Home', icon: 'home', active: false },
-  { label: 'Jobs', icon: 'briefcase', active: true },
-  { label: 'Profile', icon: 'user', active: true },
+  { label: 'Home', icon: 'home', route: '/(maid_dashboard)/maidhomescreen', active: false },
+  { label: 'Jobs', icon: 'briefcase', route: '/(maid_dashboard)/maid-jobs', active: false },
+  { label: 'Profile', icon: 'user', route: '/(maid_dashboard)/maid-profile', active: true },
 ];
 
 const styles = StyleSheet.create({
@@ -82,10 +90,12 @@ const styles = StyleSheet.create({
   scrollContainer: {
     paddingBottom: 80,
   },
-  header: {
+  headerRow: {
     backgroundColor: '#F7FAFA',
     padding: 16,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   headerText: {
     fontSize: 18,
@@ -171,6 +181,8 @@ const styles = StyleSheet.create({
   },
   navItem: {
     alignItems: 'center',
+    flex: 1,
+    paddingVertical: 8,
   },
   navLabel: {
     fontSize: 12,
