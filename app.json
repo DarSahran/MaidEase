@@ -9,15 +9,23 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "associatedDomains": [
+        "applinks:${process.env.EXPO_PUBLIC_APP_LINK_DOMAIN}",
+        "webcredentials:${process.env.EXPO_PUBLIC_APP_LINK_DOMAIN}"
+      ]
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "associatedDomains": [
+        "applinks:${process.env.EXPO_PUBLIC_APP_LINK_DOMAIN}",
+        "webcredentials:${process.env.EXPO_PUBLIC_APP_LINK_DOMAIN}"
+      ],
       "edgeToEdgeEnabled": true,
-      "package": "com.dar_sahran.MaidEasyApp"
+      "package": "com.darsahran.MaidEasyApp"
     },
     "web": {
       "bundler": "metro",
@@ -35,7 +43,9 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store",
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
