@@ -10,6 +10,7 @@ import HomeSnapshot from '../../components/dashboard/HomeSnapshot';
 import QuickActions from '../../components/dashboard/QuickActions';
 import SearchBar from '../../components/dashboard/SearchBar';
 import ServiceCard from '../../components/dashboard/ServiceCard';
+import UpdatesCarousel from '../../components/dashboard/UpdatesCarousel';
 import { getUser } from '../../utils/session';
 
 // Replace the services array with valid Ionicons names
@@ -110,11 +111,16 @@ export default function DashboardScreen() {
             <Text style={styles.subtitle}>Let's make your day a little cleaner.</Text>
           </View>
 
+
+
           {/* Search Bar */}
           <SearchBar />
 
           {/* Quick Actions */}
           <QuickActions />
+
+          {/* Updates Carousel */}
+          <UpdatesCarousel />
 
           {/* Current Booking */}
           <BookingCard />
