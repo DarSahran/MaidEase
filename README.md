@@ -46,4 +46,8 @@ MaidEasyApp is a cross-platform mobile application for booking and managing maid
 Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
+<<<<<<< HEAD
 [MIT](LICENSE)
+=======
+[MIT](LICENSE)
+>>>>>>> a2bc7245063a771948e185d825e382e7c51dcfdd
