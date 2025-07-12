@@ -1,0 +1,10 @@
+{
+  "name": "rag-backend",
+  "version": "1.0.0",
+  "main": "api/rag.js",
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "@upstash/redis": "^1.22.0"
+  }
+}
