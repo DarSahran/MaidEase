@@ -37,13 +37,13 @@ export default function LoginScreen() {
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('phone', phone)
+      .eq('mobile', phone)
       .single();
 
     setSaving(false);
 
     if (error && error.code === 'PGRST116') {
-      // User not found, redirect to signup
+      // User not found, redirect to signup and pass phone as param
       router.push({ pathname: '/(maid_auth)/maidsignup', params: { phone } });
       return;
     }
@@ -54,7 +54,7 @@ export default function LoginScreen() {
     }
 
     if (data) {
-      // Redirect to OTP verification
+      // User found, redirect to OTP verification and pass phone as param
       router.push({ pathname: '/(maid_auth)/otp-verification1', params: { phone } });
     }
   };
@@ -127,7 +127,7 @@ export default function LoginScreen() {
           Don't have an account?{' '}
           <Text
             style={styles.signupLink}
-            onPress={() => router.push('/(maid_auth)/maidsignup')}
+            onPress={() => router.push({ pathname: '/(maid_auth)/maidsignup', params: phone ? { phone } : {} })}
           >
             Sign up
           </Text>
