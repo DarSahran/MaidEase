@@ -2,6 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -24,6 +26,7 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showMismatch, setShowMismatch] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong' | ''>('');
 
   const availableSkills = [
     'Cleaning',
@@ -40,6 +43,19 @@ export default function RegisterScreen() {
     } else {
       setSelectedSkills([...selectedSkills, skill]);
     }
+  };
+
+  const getPasswordStrength = (pwd: string) => {
+    if (!pwd) return '';
+    // Weak: <8 chars or missing any requirement
+    // Medium: >=8 chars, has uppercase, has number
+    // Strong: >=8 chars, has uppercase, has number, has special char
+    const hasUpper = /[A-Z]/.test(pwd);
+    const hasNumber = /\d/.test(pwd);
+    const hasSpecial = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pwd);
+    if (pwd.length >= 8 && hasUpper && hasNumber && hasSpecial) return 'strong';
+    if (pwd.length >= 8 && hasUpper && hasNumber) return 'medium';
+    return 'weak';
   };
 
   const handleCreateAccount = () => {
@@ -65,151 +81,182 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (passwordStrength === 'weak' || !passwordStrength) {
+      setPasswordStrength('weak');
+      return;
+    }
+
     setShowMismatch(false);
     router.push('/(maid_auth)/verifyingfirstpage');
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.headerTitle}>MaidEase</Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
+      >
+        <ScrollView
+          contentContainerStyle={{ ...styles.container, flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.headerTitle}>MaidEase</Text>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Full Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Full Name"
-            placeholderTextColor="#8A8A8A"
-            value={fullName}
-            onChangeText={setFullName}
-          />
-        </View>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Full Name"
+              placeholderTextColor="#8A8A8A"
+              value={fullName}
+              onChangeText={setFullName}
+            />
+          </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Mobile Number</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Mobile Number"
-            placeholderTextColor="#8A8A8A"
-            keyboardType="phone-pad"
-            maxLength={10}
-            value={mobileNumber}
-            onChangeText={(text) => {
-              const digitsOnly = text.replace(/[^0-9]/g, '');
-              setMobileNumber(digitsOnly);
-            }}
-          />
-        </View>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Mobile Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Mobile Number"
+              placeholderTextColor="#8A8A8A"
+              keyboardType="phone-pad"
+              maxLength={10}
+              value={mobileNumber}
+              onChangeText={(text) => {
+                const digitsOnly = text.replace(/[^0-9]/g, '');
+                setMobileNumber(digitsOnly);
+              }}
+            />
+          </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Years of Experience</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., 3"
-            placeholderTextColor="#8A8A8A"
-            keyboardType="numeric"
-            value={experience}
-            onChangeText={setExperience}
-          />
-        </View>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Years of Experience</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., 3"
+              placeholderTextColor="#8A8A8A"
+              keyboardType="numeric"
+              value={experience}
+              onChangeText={setExperience}
+            />
+          </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Skills</Text>
-          <View style={styles.skillsContainer}>
-            {availableSkills.map((skill) => (
-              <TouchableOpacity
-                key={skill}
-                style={[
-                  styles.skillItem,
-                  selectedSkills.includes(skill) && styles.skillItemSelected,
-                ]}
-                onPress={() => toggleSkill(skill)}
-              >
-                <Text
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Skills</Text>
+            <View style={styles.skillsContainer}>
+              {availableSkills.map((skill) => (
+                <TouchableOpacity
+                  key={skill}
                   style={[
-                    styles.skillText,
-                    selectedSkills.includes(skill) && styles.skillTextSelected,
+                    styles.skillItem,
+                    selectedSkills.includes(skill) && styles.skillItemSelected,
                   ]}
+                  onPress={() => toggleSkill(skill)}
                 >
-                  {skill}
-                </Text>
+                  <Text
+                    style={[
+                      styles.skillText,
+                      selectedSkills.includes(skill) && styles.skillTextSelected,
+                    ]}
+                  >
+                    {skill}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {selectedSkills.length > 0 && (
+              <Text style={styles.selectedSkillsText}>
+                Selected: {selectedSkills.join(', ')}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.passwordWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor="#8A8A8A"
+                secureTextEntry={!passwordVisible}
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setShowMismatch(false);
+                  const strength = getPasswordStrength(text);
+                  setPasswordStrength(strength);
+                }}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setPasswordVisible(!passwordVisible)}
+              >
+                <Feather name={passwordVisible ? 'eye' : 'eye-off'} size={22} color="#8A8A8A" />
               </TouchableOpacity>
-            ))}
+            </View>
+            {passwordStrength ? (
+              <Text style={{
+                color:
+                  passwordStrength === 'weak'
+                    ? 'red'
+                    : passwordStrength === 'medium'
+                    ? '#FFD600'
+                    : 'green',
+                fontWeight: 'bold',
+                marginTop: 4,
+                fontSize: 13,
+              }}>
+                Password strength: {passwordStrength.charAt(0).toUpperCase() + passwordStrength.slice(1)}
+              </Text>
+            ) : null}
           </View>
-          {selectedSkills.length > 0 && (
-            <Text style={styles.selectedSkillsText}>
-              Selected: {selectedSkills.join(', ')}
-            </Text>
-          )}
-        </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.passwordWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor="#8A8A8A"
-              secureTextEntry={!passwordVisible}
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                setShowMismatch(false);
-              }}
-            />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setPasswordVisible(!passwordVisible)}
-            >
-              <Feather name={passwordVisible ? 'eye' : 'eye-off'} size={22} color="#8A8A8A" />
-            </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Confirm Password</Text>
+            <View style={styles.passwordWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm your password"
+                placeholderTextColor="#8A8A8A"
+                secureTextEntry={!confirmPasswordVisible}
+                value={confirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  setShowMismatch(false);
+                }}
+                onBlur={() => {
+                  if (
+                    password &&
+                    confirmPassword &&
+                    password.trim() !== confirmPassword.trim()
+                  ) {
+                    setShowMismatch(true);
+                  }
+                }}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
+              >
+                <Feather name={confirmPasswordVisible ? 'eye' : 'eye-off'} size={22} color="#8A8A8A" />
+              </TouchableOpacity>
+            </View>
+            {showMismatch && (
+              <Text style={styles.errorText}>Passwords do not match</Text>
+            )}
           </View>
-        </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Confirm Password</Text>
-          <View style={styles.passwordWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm your password"
-              placeholderTextColor="#8A8A8A"
-              secureTextEntry={!confirmPasswordVisible}
-              value={confirmPassword}
-              onChangeText={(text) => {
-                setConfirmPassword(text);
-                setShowMismatch(false);
-              }}
-              onBlur={() => {
-                if (
-                  password &&
-                  confirmPassword &&
-                  password.trim() !== confirmPassword.trim()
-                ) {
-                  setShowMismatch(true);
-                }
-              }}
-            />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
-            >
-              <Feather name={confirmPasswordVisible ? 'eye' : 'eye-off'} size={22} color="#8A8A8A" />
-            </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
+            <Text style={styles.buttonText}>Create Account</Text>
+          </TouchableOpacity>
+
+          <View style={styles.loginPrompt}>
+            <Text style={styles.loginText}>Already have an account? Login</Text>
           </View>
-          {showMismatch && (
-            <Text style={styles.errorText}>Passwords do not match</Text>
-          )}
-        </View>
-
-        <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
-          <Text style={styles.buttonText}>Create Account</Text>
-        </TouchableOpacity>
-
-        <View style={styles.loginPrompt}>
-          <Text style={styles.loginText}>Already have an account? Login</Text>
-        </View>
-        <View style={{ height: 30 }} />
-      </ScrollView>
+          <View style={{ height: 30 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
