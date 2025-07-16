@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   SafeAreaView,
@@ -13,11 +13,12 @@ import {
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { phone } = useLocalSearchParams();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
   const [fullName, setFullName] = useState('');
-  const [mobileNumber, setMobileNumber] = useState('');
+  const [mobileNumber, setMobileNumber] = useState(typeof phone === 'string' ? phone : '');
   const [experience, setExperience] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
