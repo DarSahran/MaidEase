@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import RazorpayCheckout from 'react-native-razorpay';
 import { getCurrentUserIdFromUsersTable } from '../../utils/session';
 import AddUpi from './AddUpi';
 
@@ -25,6 +26,7 @@ export default function PaymentScreen() {
   const orderData = params.orderData ? JSON.parse(params.orderData as string) : {};
   
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const [isPaying, setIsPaying] = useState(false);
   const [userCards, setUserCards] = useState<any[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
   const [selectedUpiApp, setSelectedUpiApp] = useState<string>('');
@@ -179,75 +181,161 @@ export default function PaymentScreen() {
   };
 
   const handleContinue = async () => {
+    // Razorpay integration: Secure payment flow
     if (!selectedPaymentMethod && !selectedUpiApp) {
-      Alert.alert('Payment Method Required', 'Please select a payment method to continue');
+      Alert.alert('Select Payment Method', 'Please select a payment method to continue.');
       return;
     }
-    let selectedMethod: any = null;
-    if (selectedPaymentMethod) {
-      selectedMethod = paymentMethods.find(method => method.id === selectedPaymentMethod)
-        || cardPaymentMethods.find(method => method.id === selectedPaymentMethod)
-        || { id: selectedPaymentMethod, type: 'wallet', title: selectedPaymentMethod };
-    } else if (selectedUpiApp) {
-      // UPI selection
-      if (selectedUpiApp === 'custom' || selectedUpiApp === 'custom-saved') {
-        selectedMethod = {
-          id: 'upi-custom',
-          type: 'upi',
-          title: customUpi || customUpiSaved || 'Custom UPI',
-        };
+    setIsPaying(true);
+    try {
+      // 1. Prepare payment details
+      const { base, platform, discount, total, finalTotal } = getCostBreakdown();
+      // 2. Call backend to create Razorpay order (never do this client-side)
+      const backendUrl = process.env.EXPO_PUBLIC_API_URL || 'https://your-backend.com/api/create-razorpay-order';
+      const response = await fetch(backendUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: Math.round(finalTotal * 100), // Razorpay expects paise
+          currency: 'INR',
+          receipt: orderData?.id || `order_${Date.now()}`,
+          notes: { user: currentUserId || '', service: orderData?.service_name || '' },
+        }),
+      });
+      let orderId, amount, keyId;
+      if (!response.ok) {
+        // Only read the body ONCE
+        const errorText = await response.text();
+        throw new Error('Failed to create payment order.' + (errorText ? ' Details: ' + errorText : ''));
       } else {
-        const upiApp = upiAppOptions.find(app => app.id === selectedUpiApp);
-        selectedMethod = {
-          id: upiApp?.id || 'upi',
-          type: 'upi',
-          title: upiApp?.name || 'UPI',
-        };
+        // Only read the body ONCE
+        let json;
+        try {
+          json = await response.json();
+        } catch (err) {
+          throw new Error('Invalid backend response: Could not parse JSON.');
+        }
+        orderId = json.orderId;
+        amount = json.amount;
+        keyId = json.keyId;
       }
+
+      // 3. Open Razorpay Checkout modal
+      const options = {
+        key: keyId, // Publishable key only
+        order_id: orderId,
+        amount: amount, // in paise
+        currency: 'INR',
+        name: 'MaidEasy',
+        description: 'Service Payment',
+        prefill: {
+          email: orderData?.user_email || '',
+          contact: orderData?.user_phone || '',
+          name: orderData?.user_name || '',
+        },
+        theme: { color: '#38E078' },
+        // Only allow UPI/Card/Wallet
+        method: {
+          netbanking: false,
+          card: true,
+          upi: true,
+          wallet: true,
+        },
+      };
+
+      RazorpayCheckout.open(options)
+        .then(async (data: any) => {
+          // 4. On success, verify payment with backend
+          //    Pass payment_id, order_id, signature to backend for verification
+          const verifyRes = await fetch(`${backendUrl.replace('create-razorpay-order', 'verify-razorpay-payment')}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              paymentId: data.razorpay_payment_id,
+              orderId: data.razorpay_order_id,
+              signature: data.razorpay_signature,
+            }),
+          });
+          if (!verifyRes.ok) throw new Error('Payment verification failed.');
+          // 5. On verified, navigate to payment-processing (which saves booking/payment in Supabase)
+          // Build new orderData to pass forward
+          let selectedMethod: any = null;
+          if (selectedPaymentMethod) {
+            selectedMethod = paymentMethods.find(method => method.id === selectedPaymentMethod)
+              || cardPaymentMethods.find(method => method.id === selectedPaymentMethod)
+              || { id: selectedPaymentMethod, type: 'wallet', title: selectedPaymentMethod };
+          } else if (selectedUpiApp) {
+            if (selectedUpiApp === 'custom' || selectedUpiApp === 'custom-saved') {
+              selectedMethod = {
+                id: 'upi-custom',
+                type: 'upi',
+                title: customUpi || customUpiSaved || 'Custom UPI',
+              };
+            } else {
+              const upiApp = upiAppOptions.find(app => app.id === selectedUpiApp);
+              selectedMethod = {
+                id: upiApp?.id || 'upi',
+                type: 'upi',
+                title: upiApp?.name || 'UPI',
+              };
+            }
+          }
+          // Fetch service_id from Supabase (optional, can be handled in payment-processing)
+          let serviceId = null;
+          if (supabase && orderData.service_name) {
+            const { data, error } = await supabase
+              .from('services')
+              .select('id')
+              .eq('name', orderData.service_name)
+              .single();
+            if (!error && data) {
+              serviceId = data.id;
+            }
+          }
+          const newOrderData = {
+            ...orderData,
+            costs: {
+              basePrice: base,
+              platformFee: platform,
+              total,
+              discount,
+              final_total: finalTotal,
+            },
+            discounted_total: finalTotal,
+            promo: selectedPromo ? {
+              code: selectedPromo.code,
+              discount_type: selectedPromo.discount_type,
+              discount_value: selectedPromo.discount_value,
+            } : null,
+            service_id: serviceId,
+            razorpay_payment_id: data.razorpay_payment_id,
+          };
+          router.replace({
+            pathname: '/(payment)/payment-processing',
+            params: {
+              orderData: JSON.stringify(newOrderData),
+              paymentMethod: JSON.stringify(selectedMethod),
+              promoCode: selectedPromo?.code || '',
+            },
+          });
+        })
+        .catch((err: any) => {
+          // 6. On failure/cancel, show error
+          if (err && err.description !== 'Payment Cancelled') {
+            Alert.alert('Payment Failed', err.description || 'Payment was not completed.');
+          }
+        })
+        .finally(() => setIsPaying(false));
+    } catch (e) {
+      setIsPaying(false);
+      let message = 'Could not start payment.';
+      if (typeof e === 'object' && e && 'message' in e) {
+        message = (e as any).message;
+      } else if (typeof e === 'string') {
+        message = e;
+      }
+      Alert.alert('Payment Error', message);
     }
-
-    // Fetch service_id from Supabase
-    let serviceId = null;
-    if (supabase && orderData.service_name) {
-      const { data, error } = await supabase
-        .from('services')
-        .select('id')
-        .eq('name', orderData.service_name)
-        .single();
-      if (!error && data) {
-        serviceId = data.id;
-      }
-    }
-
-    const { base, platform, discount, total, finalTotal } = getCostBreakdown();
-
-    // Build new orderData to pass forward
-    const newOrderData = {
-      ...orderData,
-      costs: {
-        basePrice: base,
-        platformFee: platform,
-        total,
-        discount,
-        final_total: finalTotal,
-      },
-      discounted_total: finalTotal,
-      promo: selectedPromo ? {
-        code: selectedPromo.code,
-        discount_type: selectedPromo.discount_type,
-        discount_value: selectedPromo.discount_value,
-      } : null,
-      service_id: serviceId,
-    };
-
-    router.push({
-      pathname: '/(payment)/payment-processing',
-      params: {
-        orderData: JSON.stringify(newOrderData),
-        paymentMethod: JSON.stringify(selectedMethod),
-        promoCode: selectedPromo?.code || '',
-      }
-    });
   };
 
   // Card brand logo helper
@@ -745,9 +833,9 @@ export default function PaymentScreen() {
             isPaymentSelected ? styles.continueButtonActive : styles.continueButtonDisabled
           ]}
           onPress={handleContinue}
-          disabled={!isPaymentSelected}
+          disabled={!isPaymentSelected || isPaying}
         >
-          <Text style={styles.continueButtonText}>Continue</Text>
+          {isPaying ? <ActivityIndicator color="#fff" /> : <Text style={styles.continueButtonText}>Continue</Text>}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

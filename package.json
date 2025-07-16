@@ -32,10 +32,7 @@
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.13",
-<<<<<<< HEAD
     "dotenv": "^17.2.0",
-=======
->>>>>>> 017ec51cbf02b43e7b498f9130d0ea608d4727fb
     "expo": "^53.0.19",
     "expo-auth-session": "~6.2.1",
     "expo-blur": "~14.1.5",
