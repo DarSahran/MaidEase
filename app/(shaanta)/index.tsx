@@ -1,14 +1,14 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Easing, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Animated, Dimensions, Easing, Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 
-const RAG_API_URL = 'https://rag-backend-keg223cey-darsahrans-projects.vercel.app/api/rag'; // Change here if redeployed
-const ACCENT = '#2ec4b6';
-const BG = '#f7fafc';
+const RAG_API_URL = 'https://rag-backend-i6ntyrzw5-darsahrans-projects.vercel.app/api/rag'; // Change here if redeployed
+const ACCENT = '#27ae60'; // App green
+const BG = '#d8ecd4ff'; // Lighter shade of app green
 
 function TypingDots({ anim }: { anim: Animated.Value }) {
   return (
@@ -95,7 +95,7 @@ export default function ShaantaPage() {
   const styles = StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: "#fff",
+      backgroundColor: BG,
     },
     gradientBg: {
       position: 'absolute',
@@ -104,11 +104,11 @@ export default function ShaantaPage() {
       right: 0,
       bottom: 0,
       zIndex: 0,
-      backgroundColor: "#fff",
+      backgroundColor: BG,
     },
     header: {
       width: '100%',
-      backgroundColor: '#fff',
+      backgroundColor: BG,
       flexDirection: 'row',
       alignItems: 'center',
       height: 48,
@@ -233,7 +233,7 @@ export default function ShaantaPage() {
     },
     botMsg: {
       alignSelf: 'flex-start',
-      backgroundColor: '#e6fcf7',
+      backgroundColor: BG,
       borderRadius: 20,
       marginVertical: 7,
       paddingVertical: 13,
@@ -294,7 +294,7 @@ export default function ShaantaPage() {
       letterSpacing: 1,
     },
     typingBubble: {
-      backgroundColor: '#e6fcf7',
+      backgroundColor: BG,
       borderRadius: 12,
       paddingHorizontal: 12,
       paddingVertical: 7,
@@ -409,7 +409,7 @@ export default function ShaantaPage() {
         { role: 'user', content: input }
       ]
     };
-    console.log('Sending to LLM:', payload);
+    // Removed debug log
     try {
       const res: any = await fetchWithTimeout(RAG_API_URL, {
         method: 'POST',
@@ -418,7 +418,7 @@ export default function ShaantaPage() {
       }, 30000);
       if (!res || !('ok' in res)) throw new Error('No response');
       const data = await res.json();
-      console.log('LLM response:', data);
+      // Removed debug log
       if (!res.ok) {
         setMessages(prev => [...prev, { from: 'bot', text: `Error: ${data.error || 'Unknown error'}. Details: ${data.details || ''}`, ts: new Date() }]);
       } else {
@@ -460,10 +460,14 @@ const quickActions: { icon: 'cleaning-services' | 'local-offer' | 'feedback' | '
           {/* Header */}
           <View style={styles.header} accessibilityRole="header">
             <View style={styles.headerLogo}>
-              <Text style={styles.headerLogoText} accessibilityLabel="Maid Service Logo">M</Text>
+              <Image
+                source={require('../../assets/images/shaanta.jpg')}
+                style={{ width: 48, height: 48, borderRadius: 24 }}
+                resizeMode="cover"
+              />
             </View>
             <View style={styles.headerTextWrap}>
-              <Text style={styles.headerTitle}>MaidEase Chat</Text>
+              <Text style={styles.headerTitle}>Shaanta</Text>
               <Text style={styles.headerSubtitle}>How can we help you today?</Text>
             </View>
             <View style={styles.statusDot} />
@@ -541,7 +545,13 @@ const quickActions: { icon: 'cleaning-services' | 'local-offer' | 'feedback' | '
               {messages.map((msg, idx) => (
                 msg.from === 'bot' ? (
                   <View key={idx} style={styles.botMsgWrap}>
-                    <View style={styles.botAvatar}><Text style={styles.avatarTextSmall}>M</Text></View>
+                    <View style={styles.botAvatar}>
+                      <Image
+                        source={require('../../assets/images/shaanta.jpg')}
+                        style={{ width: 32, height: 32, borderRadius: 16 }}
+                        resizeMode="cover"
+                      />
+                    </View>
                     <View style={styles.botMsg} accessibilityLabel="Maid reply">
                       <Text style={styles.botMsgText}>{msg.text}</Text>
                       <Text style={styles.msgTime}>{formatTime(msg.ts)}</Text>
@@ -556,7 +566,13 @@ const quickActions: { icon: 'cleaning-services' | 'local-offer' | 'feedback' | '
               ))}
               {showTyping && (
                 <View style={styles.typingRow}>
-                  <View style={styles.avatarSmall}><Text style={styles.avatarTextSmall}>M</Text></View>
+                  <View style={styles.avatarSmall}>
+                    <Image
+                      source={require('../../assets/images/shaanta.jpg')}
+                      style={{ width: 28, height: 28, borderRadius: 14 }}
+                      resizeMode="cover"
+                    />
+                  </View>
                   <View style={styles.typingBubble}>
                     <TypingDots anim={typingAnim} />
                   </View>

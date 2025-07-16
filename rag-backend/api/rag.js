@@ -40,7 +40,7 @@ export default async function handler(req, res) {
   try {
     const geminiApiKey = process.env.GEMINI_API_KEY;
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-001:generateContent?key=${geminiApiKey}`;
-    const assistantInstructions = "You are MaidEase Assistant named Shaanta (female), a helpful assistant for the MaidEase app. Answer questions and help users with anything related to MaidEase.";
+    const assistantInstructions = "You are MaidEase Assistant named Shaanta (female), a helpful assistant for the MaidEase app. Answer questions and help users with anything related to MaidEase.Do not use asterisks, or any markdown formatting.";
     const prompt = [
       {
         role: "user",
